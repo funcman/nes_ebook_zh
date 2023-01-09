@@ -1,29 +1,29 @@
-# Implementing the rest of CPU instructions
+# 实现其余的 CPU 指令
 
 
  <div style="text-align:center"><img src="./images/ch3.3/image_1_how_to_draw_owl.png" width="60%"/></div>
 
-Implementing the rest of the 6502 CPU instructions should be relatively straightforward. I won't go into detail for all of them.
+实现其余 6502 CPU 指令应该相对简单。我不会详细介绍所有这些。
 
-Just some remarks:
-* **ADC** is perhaps the most complicated instruction from a logic flow perspective. Note that the spec contains details regarding decimal mode that can be entirely skipped because the Ricoh modification of the chip didn't support decimal mode.
-> This article goes into a detailed overview of how binary arithmetic is implemented in 6502: [The 6502 overflow flag explained mathematically ](http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html)
+只是一些注释：
+* 从逻辑流程的角度来看， **ADC** 可能是最复杂的指令。请注意，该规范包含有关可以完全跳过的十进制模式的详细信息，因为该芯片的 Ricoh 修改不支持十进制模式。
+> 本文详细介绍了如何在 6502 中实现二进制算术：[6502 溢出标志以数学方式解释](http://www.righto.com/2012/12/the-6502-overflow-flag-explained.html)
 >
->For the curious and brave souls: [The 6502 CPU's overflow flag explained at the silicon level ](http://www.righto.com/2013/01/a-small-part-of-6502-chip-explained.html)
+>对于好奇和勇敢的人，可以看一下：[6502 CPU的溢出标志在硅层面的解释](http://www.righto.com/2013/01/a-small-part-of-6502-chip-explained.html)
 
-* After ADC is implemented, implementing **SBC** becomes trivial as
+* 实现 ADC 后，实现 **SBC** 变得微不足道，因为
 `A - B = A + (-B)`.
-And `-B = !B + 1`
+以及 `-B = !B + 1`
 
-* **PHP**, **PLP** and **RTI** have to deal with [2 bit B-flag](http://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag). Except for interrupts execution, those are the only commands that directly influence (or being directly influenced by) the 5th bit of **Status register P**
+* **PHP** 、 **PLP** 和 **RTI** 必须处理 [2位B-flag](http://wiki.nesdev.com/w/index.php/Status_flags#The_B_flag)。除了中断执行之外，这些是唯一直接影响（或直接受其影响）**状态寄存器P**的第 5 位的命令
 
-* The majority of the branching and jumping operations can be implemented by simply modifying the **program_counter** register. However, be careful not to increment the register within the same instruction interpret cycle.
+* 大部分的跳转和跳转操作都可以通过简单的修改 **program_counter** 寄存器来实现。但是，请注意不要在同一指令解释周期内递增寄存器。
 
-If you get stuck, you can always look up the implementation of 6502 instruction set here: <link to code>
+如果你卡住了，你可以随时在这里查看 6502 指令集的实现：<link to code>
 
 
 <br/>
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch3.3" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch3.3" target="_blank">GitHub</a>

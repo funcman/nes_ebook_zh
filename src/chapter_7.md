@@ -1,43 +1,43 @@
-# Emulating joypads
+# 模拟手柄
 
-NES and Famicom supported a variety of controllers:
-- [Joypads](https://www.youtube.com/watch?v=UKMO5tlANEU)
-- [Power pads](https://www.youtube.com/watch?v=ErzuU78v60M)
-- [Lightgun Zappers](https://www.youtube.com/watch?v=x6u3ek7BXps)
-- [Arkanoid controllers](https://www.youtube.com/watch?v=u9k6xoErR4w)
-- [And even keyboards](https://www.youtube.com/watch?v=j8J58aTxCPM)
+NES 和 Famicom 支持多种控制器：
+- [手柄](https://www.youtube.com/watch?v=UKMO5tlANEU)
+- [电源垫](https://www.youtube.com/watch?v=ErzuU78v60M)
+- [光枪灭霸](https://www.youtube.com/watch?v=x6u3ek7BXps)
+- [打砖块控制器](https://www.youtube.com/watch?v=u9k6xoErR4w)
+- [甚至键盘](https://www.youtube.com/watch?v=j8J58aTxCPM)
 
-We will emulate joypads as it's the most common and the easiest device to emulate
+我们将模拟手柄，因为它是最常见和最容易模拟的设备
 <div style="text-align:center;"><img src="./images/ch7/image_1_joypad2.png" width="40%"/></div>
 
-Two joypads are mapped to **0x4016** and **0x4017** CPU address space, respectively.
-The same register can be used for both reading and writing.
-Reading from a controller reports the state of a button (1 - pressed, 0 - released). The controller reports a state of one button at a time. To get the state of all buttons, the CPU has to read the controller register 8 times.
+两个手柄分别映射到 **0x4016** 和 **0x4017**CPU 地址空间。
+同一个寄存器可用于读取和写入。
+从控制器读取报告按钮的状态（1 - 按下，0 - 释放）。控制器一次报告一个按钮的状态。为了获得所有按钮的状态，CPU 必须读取控制器寄存器 8 次。
 
-The order of reported Buttons is as follows:
+上报Button的顺序如下：
 
 ```bash
 A -> B -> Select -> Start -> Up -> Down -> Left -> Right
 ```
 
-After reporting the state of the button **RIGHT**, the controller would continually return 1s for all following read, until a strobe mode change.
+在报告按钮 **RIGHT** 的状态后，控制器将连续返回 1 用于所有后续读取，直到频闪模式发生变化。
 
-The CPU can change the mode of a controller by writing a byte to the register. However, only the first bit matters.
+CPU 可以通过向寄存器写入一个字节来改变控制器的模式。但是，只有第一位很重要。
 
-The controller operates in 2 modes:
-- strobe bit on - controller reports only status of the button A on every read
-- strobe bit off - controller cycles through all buttons
+控制器以 2 种模式运行：
+- 位选通打开 - 控制器在每次读取时仅报告按钮 A 的状态
+- 位选通关闭 - 控制器循环通过所有按钮
 
 
-So the most basic cycle to read the state of a joypad for CPU:
-1) Write **0x1** to **0x4016** (strobe mode on - to reset the pointer to button A)
-2) Write **0x00** to **0x4016** (strobe mode off)
-3) Read from **0x4016** eight times
-4) Repeat
+因此，读取 CPU 手柄状态的最基本循环：
+1) 将 **0x1** 写入 **0x4016**（位选通模式开启 - 将指针重置为按钮 A）
+2) 将 **0x00** 写入 **0x4016**（位选通模式关闭）
+3) 从 **0x4016** 读取八次
+4) 重复
 
-Ok, so let's sketch it out.
+好的，让我们把它画出来。
 
-We need 1 byte to store the status of all buttons:
+我们需要 1 个字节来存储所有按钮的状态：
 
 ```rust
 bitflags! {
@@ -55,10 +55,10 @@ bitflags! {
 }
 ```
 
-We need to track:
-- strobe mode - on/off
-- the status of all buttons
-- an index of a button to be reported on the next read.
+我们需要跟踪：
+- 位选通模式 - 开/关
+- 所有按钮的状态
+- 要在下一次读取时报告的按钮的索引。
 
 ```rust
 pub struct Joypad {
@@ -78,7 +78,7 @@ impl Joypad {
 }
 ```
 
-Then we can implement reading from and writing to a controller:
+然后我们可以实现对控制器的读写：
 
 ```rust
 impl Joypad {
@@ -103,9 +103,9 @@ impl Joypad {
 }
 ```
 
-Don't forget to connect the joypad to the BUS and map it for address 0x4016.
+然后我们可以实现对控制器的读写：
 
-One last step is to adjust our game loop to update the status of the joypad depending of a keyboard button being pressed or released on the host machine:
+最后一步是调整我们的游戏循环以根据主机上按下或释放的键盘按钮更新游戏手柄的状态：
 
 ```rust
 fn main() {
@@ -159,17 +159,17 @@ fn main() {
 }
 ```
 
-And here we are. Now we can play NES classics, using a keyboard. If you want to have a little bit of geeky fun, I highly recommend buying USB replicas of original NES controllers on Amazon.
+我们在这里。现在我们可以使用键盘玩 NES 经典。如果您想获得一点极客乐趣，我强烈建议您在亚马逊上购买原始 NES 控制器的 USB 副本。
 
-I'm not affiliated, I got [these ones](https://www.amazon.com/gp/product/B07M7SYX11/ref=ppx_yo_dt_b_asin_title_o05_s00?ie=UTF8&psc=1)
+我不隶属，我有[这些](https://www.amazon.com/gp/product/B07M7SYX11/ref=ppx_yo_dt_b_asin_title_o05_s00?ie=UTF8&psc=1)
 
-SDL2 fully supports [joysticks](https://docs.rs/sdl2/0.34.2/sdl2/joystick/struct.Joystick.html), and with just a tiny adjustment in our game loop, we can have almost perfect NES experience.
+SDL2完全支持[joysticks](https://docs.rs/sdl2/0.34.2/sdl2/joystick/struct.Joystick.html)，只需在游戏循环中稍作调整，即可拥有近乎完美的NES体验。
 
 <div style="text-align:center;"><img src="./images/ch7/image_2_rl.png" width="40%"/></div>
 
-Ok, we've made quite a bit of progress here. The two major pieces left are:
-- Support for scrolling - we will enable gaming into platformers.
-- Audio Processing Unit - to get those sweet NES chiptunes back in our lives.
+好的，我们在这里取得了相当大的进步。剩下的两个主要部分是：
+- 支持卷动 - 我们将使游戏成为平台游戏。
+- 音频处理单元——让那些甜蜜的 NES 芯片回到我们的生活中。
 
 <div style="text-align:center;"><img src="./images/ch7/image_3_progress.png" width="80%"/></div>
 
@@ -177,4 +177,4 @@ Ok, we've made quite a bit of progress here. The two major pieces left are:
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch7" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch7" target="_blank">GitHub</a>

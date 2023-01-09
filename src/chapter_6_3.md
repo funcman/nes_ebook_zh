@@ -1,58 +1,58 @@
-# Rendering CHR ROM Tiles
+# 渲染 CHR ROM 切片
 
-The address space **[0x0 .. 0x2000]** on PPU is reserved for CHR ROM, which contains the visual graphics data of a game.
+PPU 上的地址空间 **[0x0 .. 0x2000]** 是为 CHR ROM 保留的，其中包含游戏的视觉图形数据。
 
-That's *8 KiB* worth of data. And that's all there was in the first versions of NES cartridges.
+那是 *8 KiB* 的数据。这就是 NES 卡带的第一个版本中的全部内容。
 
-Visual data is packed in so-called tiles: an 8 x 8 pixel image that could use up to 4 colors. (to be precise, background tile can have 4 colors, a sprite tile can have 3 colors, and 0b00 is used as an indication that a pixel should be transparent)
+视觉数据打包在所谓的图块中：一个 8 x 8 像素的图像，最多可以使用 4 种颜色。（准确地说，背景瓦片可以有4种颜色，一个精灵瓦片可以有3种颜色，0b00用来表示一个像素应该是透明的）
 
 ```bash
-8 * 8 * 2 (2 bits to codify color) = 128 bits = 16 bytes to codify a single tile
+8 * 8 * 2 (用2比特来编码颜色) = 128 bits = 16个字节来编排一个瓦片
 ```
 
-8 KiB / 128 bits = 512 tiles. I.e., each cartridge contained 512 tiles in total, divided into 2 pages/banks. The banks did not really have a name, historically they are called "left" and "right".
+8 KiB / 128 位 = 512 块。即，每个卡带总共包含 512 个图块，分为 2 页/组。组并没有真正的名字，历史上它们被称为“左”和“右”。
 
 
 <div style="text-align:center"><img src="./images/ch6.3/image_1_mario_tiles.png" width="50%"/></div>
 
-8 pixels x 8 pixels is a tiny size, not much can be presented that way. The majority of objects in NES games are composed of multiple tiles.
+8 像素 x 8 像素是一个很小的尺寸，无法以这种方式呈现。NES 游戏中的大多数对象由多个图块组成。
 
- <div style="text-align:center"><img src="./images/ch6.3/image_2_8bit_drawings.png" width="30%" ><br/> 8x8 pixel art by <a href="https://twitter.com/johanvinet">Johan Vinet</a> <br/><a href="https://twitter.com/PixelProspector/status/1097565152940044293">[Check it out]</a> </div>
+ <div style="text-align:center"><img src="./images/ch6.3/image_2_8bit_drawings.png" width="30%" ><br/><a href="https://twitter.com/johanvinet">Johan Vinet</a> 的 8x8 像素艺术<br/><a href="https://twitter.com/PixelProspector/status/1097565152940044293">[查看]</a> </div>
 
-What makes the CHR format tricky is that tiles themselves don't hold any color information. Each pixel in a tile is codified using 2 bits, declaring a color index in a palette, not a color itself.
+CHR 格式的棘手之处在于图块本身不包含任何颜色信息。平铺中的每个像素都使用 2 位进行编码，在调色板中声明颜色索引，而不是颜色本身。
 
-> If NES were using popular RGB format for each pixel, a single tile would occupy 8*8*24 = 192 bytes. And it would require 96 KiB of CHR ROM space to hold 512 tiles.
+> 如果 NES 对每个像素使用流行的 RGB 格式，则单个图块将占用 8 8 24 = 192 个字节。它需要 96 KiB 的 CHR ROM 空间来容纳 512 个切片。
 
-The real color of a pixel is decided during the rendering phase by using the so-called color palette, more on this later.
+像素的真实颜色是在渲染阶段通过使用所谓的调色板决定的，稍后会详细介绍。
 
-By reading CHR ROM, it is impossible to derive colors, only shapes.
+通过读取 CHR ROM，不可能得出颜色，只能得出形状。
 
 <div style="text-align:center"><img src="./images/ch6.3/image_3_chr_content.png" width="30%"/></div>
 
 <div style="text-align:center"><img src="./images/ch6.3/image_4_color_code.png" width="50%"/></div>
 
-Surprisingly, 2 bits of a pixel are not codified in the same byte. A tile is described using 16 bytes. And each row is encoded using 2 bytes that stand 8 bytes apart from each other.
-To figure out the color index of the top-left pixel, we need to read the 7th bit of byte 0x0000 and the 7th bit of byte 0x0008, to get the next pixel in the same row we would need to read 6th bits in the same bytes, etc.
+令人惊讶的是，一个像素的 2 位没有编码在同一个字节中。使用 16 个字节描述一个 tile。每一行都使用 2 个字节进行编码，这些字节彼此相隔 8 个字节。
+需要指出的是，为了计算左上角像素的颜色索引，我们需要读取字节 0x0000 的第 7 位和字节 0x0008 的第 7 位，要获得同一行中的下一个像素，我们需要读取同一行中的第 6 位字节等。
 
 
 <div style="text-align:center"><img src="./images/ch6.3/image_5_16bytes_of_a_tile.png" width="50%"/></div>
 
 
-## Palette
+## 调色板
 
-Before rendering CHR ROM content, we need to briefly discuss the colors available to the NES.
-Different versions of the PPU chip had slightly different system-level palettes of 52 hardwired colors.
+在渲染 CHR ROM 内容之前，我们需要简要讨论一下 NES 可用的颜色。
+不同版本的 PPU 芯片的 52 种硬连线颜色的系统级调色板略有不同。
 
-All necessary details can be found on corresponding [NesDev wiki page](http://wiki.nesdev.com/w/index.php/PPU_palettes#Palettes).
+所有必要的细节都可以在相应的[NesDev wiki页面](http://wiki.nesdev.com/w/index.php/PPU_palettes#Palettes)上找到。
 
 
 <div style="text-align:center"><img src="./images/ch6.3/image_6_system_palette.png" width="50%"/></div>
 
-There are multiple variations used in emulators. Some make the picture more visually appealing, while others keep it closer to the original picture NES generated on a TV.
+模拟器中使用了多种变体。有些使图片更具视觉吸引力，而另一些则使其更接近电视上生成的原始图片 NES。
 
-It doesn't matter much which one we would choose, most of them get us good enough results.
+我们选择哪一种并不重要，它们中的大多数都能为我们带来足够好的结果。
 
-However, we still need to codify that table in a RGB format that is recognized by the SDL2 library:
+但是，我们仍然需要将该表编码为 SDL2 库可识别的 RGB 格式：
 
 ```rust
 #[rustfmt::skip]
@@ -74,19 +74,17 @@ pub static SYSTEM_PALLETE: [(u8,u8,u8); 64] = [
 ];
  ```
 
- ## Rendering CHR Rom
+ ## 渲染 CHR Rom
 
-To render tiles from a CHR ROM, we need to get a ROM file of a game.
-Google would help you find a lot of ROM dumps of the well-known classics. However, downloading such ROMs if you don't own a cartridge would be illegal (wink-wink).
-There is a site that listed legit homebrew games that were recently developed. And some of them are pretty good, most of them are free.
-Check it out: [www.nesworld.com](http://www.nesworld.com/article.php?system=nes&data=neshomebrew)
+要从 CHR ROM 渲染图块，我们需要获取游戏的 ROM 文件。谷歌会帮你找到很多著名经典的 ROM 转储。但是，如果您没有卡带，则下载此类 ROM 是非法的（眨眼眨眼）。
+有一个网站列出了最近开发的合法自制游戏。而且有些还不错，大部分都是免费的。看看：[www.nesworld.com](http://www.nesworld.com/article.php?system=nes&data=neshomebrew)
 
-The caveat here that our emulator supports only NES 1.0 format. And homebrew developed games tend to use NES 2.0.
-Games like "Alter Ego" would do.
+这里需要注意的是，我们的模拟器仅支持 NES 1.0 格式。并且自制开发的游戏倾向于使用 NES 2.0。
+像“Alter Ego”这样的游戏就可以了。
 
-I would use Pac-Man, mostly because it's recognizable and I happen to own a cartridge of this game.
+我会使用吃豆人，主要是因为它很容易辨认，而且我碰巧拥有这款游戏的卡带。
 
-First, let's create an abstraction layer for a frame, so we don't need to work with SDL directly:
+首先，让我们为一个框架创建一个抽象层，这样我们就不需要直接使用 SDL：
 
 ```rust
 pub struct Frame {
@@ -115,7 +113,7 @@ impl Frame {
 ```
 
 
-Now we are ready to render a tile on a frame:
+现在我们准备好在框架上渲染图块：
 
 ```rust
 fn show_tile(chr_rom: &Vec<u8>, bank: usize, tile_n: usize) ->Frame {
@@ -149,9 +147,9 @@ fn show_tile(chr_rom: &Vec<u8>, bank: usize, tile_n: usize) ->Frame {
 }
 ```
 
-> **Note:** For now, we're interpreting color indices randomly. Just pick 4 random colors from the system palette for each index value to see how it would look like.
+> **注意：** 目前，我们正在随机解释颜色索引。只需从系统调色板中为每个索引值选择 4 种随机颜色即可查看它的外观。
 
-Tying it all together in the main loop:
+在主循环中将它们捆绑在一起：
 
 ```rust
 fn main() {
@@ -183,23 +181,23 @@ fn main() {
 }
 ```
 
-And the result is not that impressive:
+结果并不那么令人印象深刻：
 
 <div style="text-align:center"><img src="./images/ch6.3/image_7_tile_1.png" width="50%"/></div>
 
-Might it be a Pac-Man's back... err... head? Who knows.
+可能是吃豆人的后背……呃……头？谁知道。
 
-We can adjust code just a little bit to draw all tiles from CHR ROM:
+我们可以稍微调整一下代码以从 CHR ROM 中绘制所有图块：
 
 <div style="text-align:center"><img src="./images/ch6.3/image_8_pacman_chr_rom.png" width="80%"/></div>
 
 
-Aha! Despite colors being clearly off, the shapes are recognizable now. We can see parts of ghosts, some letters, and some numbers.
-I guess that's it. Moving on...
+啊哈！尽管颜色明显不同，但现在可以识别形状。我们可以看到部分幽灵、一些字母和一些数字。
+我猜就是这样。继续...
 
 
 <br/>
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch6.3" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch6.3" target="_blank">GitHub</a>

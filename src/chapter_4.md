@@ -1,57 +1,56 @@
-# Emulating BUS
+# 模拟总线
 
  <div style="text-align:center"><img src="./images/ch4/image_1_bus_schema.png" width="60%"/></div>
 
-CPU gets access to memory (including memory-mapped spaces) using three buses:
-* address bus carries the address of a required location
-* control bus notifies if it's a read or write access
-* data bus carries the byte of data being read or written
+CPU 使用三种总线访问内存（包括内存映射空间）：
+* 地址总线承载所需位置的地址
+* 控制总线通知它是读还是写访问
+* 数据总线承载正在读取或写入的数据字节
 
-A bus itself is not a device; it's a wiring between platform components.
-Therefor, we don't need to implement it as an independent module as Rust allows us to "wire" the components directly.
-However, it's a convenient abstraction where we can offload quite a bit of responsibility to keep the CPU code cleaner.
+总线本身不是设备；它是平台组件之间的连线。因此，我们不需要将它作为一个独立的模块来实现，因为 Rust 允许我们直接“连接”组件。
+然而，它是一个方便的抽象，我们可以卸下相当多的责任来保持 CPU 代码的清洁。
 
  <div style="text-align:center"><img src="./images/ch4/image_2_cpu_pinout_2.png" width="50%"/></div>
 
-In our current code, the CPU has direct access to RAM space, and it is oblivious to memory-mapped regions.
+在我们当前的代码中，CPU 可以直接访问 RAM 空间，并且忽略了内存映射区域。
 
-By introducing a Bus module, we can have a single place for:
-* Intra device communication:
-    * Data reads/writes
-    * Routing hardware interrupts to CPU (more on this later)
-* Handling memory mappings
-* Coordinating PPU and CPU clock cycles (more on this later)
+通过引入 Bus 模块，我们可以有一个地方用于：
+* 设备内通信：
+    * 数据读/写
+    * 将硬件中断路由到 CPU（稍后会详细介绍）
+* 处理内存映射
+* 协调 PPU 和 CPU 时钟周期（稍后会详细介绍）
 
-The good news is that we don't need to write a full-blown emulation of data, control, and address buses. Because it's not a hardware chip, no logic expects any specific behavior from the BUS. So we can just codify coordination and signal routing.
+好消息是我们不需要编写数据、控制和地址总线的全面仿真。因为它不是硬件芯片，所以没有逻辑期望来自 BUS 的任何特定行为。所以我们可以只编写协调和信号路由。
 
-For now, we can implement the bare bones of it:
-* Access to CPU RAM
-* Mirroring
+现在，我们可以实现它的基本框架：
+* 访问 CPU RAM
+* 镜像
 
-Mirroring is a side-effect of NES trying to keep things as cheap as possible. It can be seen as an address space being mapped to another address space.
+镜像是 NES 试图保持尽可能便宜的副作用。它可以看作是一个地址空间被映射到另一个地址空间。
 
-For instance, on a CPU memory map RAM address space **[0x000 .. 0x0800]** (2 KiB) is mirrored three times:
+例如，在 CPU 内存映射 RAM 地址空间 **[0x000 .. 0x0800]** (2 KiB) 被镜像 3 次：
 * **[0x800 .. 0x1000]**
 * **[0x1000 .. 0x1800]**
 * **[0x1800 .. 0x2000]**
 
-This means that there is no difference in accessing memory addresses at 0x0000 or 0x0800 or 0x1000 or 0x1800 for reads or writes.
+这意味着在读取或写入时访问 0x0000 或 0x0800 或 0x1000 或 0x1800 的内存地址没有区别。
 
-The reason for mirroring is the fact that CPU RAM has only 2 KiB of ram space, and only 11 bits is enough for addressing RAM space. Naturally, the NES motherboard had only 11 addressing tracks from CPU to RAM.
+镜像的原因是 CPU RAM 只有 2 KiB 的 ram 空间，并且只有 11 位足以寻址 RAM 空间。自然地，NES 主板只有 11 个从 CPU 到 RAM 的寻址轨道。
 
 
  <div style="text-align:center"><img src="./images/ch4/image_3_cpu_ram_connection.png" width="70%"/></div>
 
-CPU however has **[0x0000 - 0x2000]** addressing space reserved for RAM space - and that's 13 bits. As a result, the 2 highest bits have no effect when accessing RAM.
-Another way of saying this, when CPU is requesting address at **0b0001_1111_1111_1111** (13 bits) the RAM chip would receive only **0b111_1111_1111** (11 bits) via the address bus.
+然而，CPU 有 **[0x0000 - 0x2000]** 为 RAM 空间保留的寻址空间 - 这是 13 位。因此，在访问 RAM 时，最高 2 位无效。
+换一种说法，当 CPU 请求地址**0b0001_1111_1111_1111** （13 位）时，RAM 芯片将通过地址总线仅接收 **0b111_1111_1111**（11 位）。
 
-So despite mirroring looking wasteful, it was a side-effect of the wiring, and on real hardware it cost nothing. Emulators, on the other hand, have to do extra work to provide the same behavior.
+因此，尽管镜像看起来很浪费，但它是布线的副作用，在真正的硬件上它没有任何成本。另一方面，模拟器必须做额外的工作才能提供相同的行为。
 
-Long story short, the BUS needs to zero out the highest 2 bits if it receives a request in the range of **[0x0000 … 0x2000]**
+长话短说，如果 BUS 收到 **[0x0000 … 0x2000]** 范围内的请求，则需要将最高 2 位清零
 
-Similarly address space **[0x2008 .. 0x4000]** mirrors memory mapping for PPU registers **[0x2000 .. 0x2008]**. Those are the only two mirrorings the BUS would be responsible for. Let's codify it right away, even though we don't have anything for PPU yet.
+类似地，地址空间 **[0x2008 .. 0x4000]** 镜像了 PPU 寄存器 **[0x2000 .. 0x2008]** 的内存映射。这些是 BUS 将负责的仅有的两个镜像。让我们立即对其进行编码，即使我们还没有 PPU 的任何东西。
 
-So let's introduce a new module Bus, that will have direct access to RAM.
+因此，让我们介绍一个新模块 Bus，它可以直接访问 RAM。
 
 ```rust
 pub struct Bus {
@@ -67,7 +66,7 @@ impl Bus {
 }
 ```
 
-The bus will also provide read/write access:
+总线还将提供读/写访问：
 
 ```rust
 const RAM: u16 = 0x0000;
@@ -111,7 +110,7 @@ impl Mem for Bus {
 }
 ```
 
-The last step is to replace direct access to RAM from CPU with access via BUS
+最后一步是将 CPU 对 RAM 的直接访问替换为通过 BUS 访问
 
 ```rust
 pub struct CPU {
@@ -158,10 +157,10 @@ impl CPU {
 }
 ```
 
-And that's pretty much it for now. Wasn't hard, right?
+现在就差不多了。不难，对吧？
 
 <br/>
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch4" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch4" target="_blank">GitHub</a>

@@ -3,42 +3,41 @@
 
 # Why NES?
 
-The [NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System) (Nintendo Entertainment System) was one of the most popular gaming platforms throughout the 80s and the 90s. The platform and the emergent ecosystem was and still is a huge cultural phenomenon. The device itself had relatively simple hardware (judging from the modern days), and it's incredible how much was made out of it.
+[NES](https://en.wikipedia.org/wiki/Nintendo_Entertainment_System)（任天堂娱乐系统）是整个80 年代和 90 年代最受欢迎的游戏平台之一。平台和涌现的生态系统过去和现在都是一个巨大的文化现象。该设备本身具有相对简单的硬件（从现代来看），更令人难以置信的是它的制造量。
 
-This series is about creating an emulator capable of running and playing first-gen NES games, such as:
+本系列是关于创建一个能够运行和玩第一代 NES 游戏的模拟器，例如：
 - [PacMan](https://en.wikipedia.org/wiki/Pac-Man)
 - [Donkey Kong](https://en.wikipedia.org/wiki/Donkey_Kong)
 - [Ice Climber](https://en.wikipedia.org/wiki/Ice_Climber)
 - [Super Mario Bros](https://en.wikipedia.org/wiki/Super_Mario_Bros)
-- etc.
+- 等等
 
-We would go with incremental updates, with potentially enjoyable milestones, gradually building a fully capable platform. One of the problems with writing an emulator is that you don't get any feedback until the very end when the whole thing is done, and that's no fun. I've tried to break the entire exercise into small pieces with visible and playable goals. After all, it's all about having a good time.
+我们将进行增量更新，可能会带来令人愉快的里程碑，逐步构建一个功能齐全的平台。编写模拟器的问题之一是，直到整个事情完成后，您才得到一些反馈，这并不好玩。我试图将整个练习分解成具有可见和可玩目标的小块。毕竟，一切都是为了玩得开心。
 
 
-# Why Rust?
+# 为什么要 Rust?
 
-Rust is a modern language with modern expression capabilities and impressive performance characteristics.
+Rust 是一种现代语言，具有现代表达能力和令人印象深刻的性能特征。
 
-> For an overview of the language, I recommend watching ["Consider Rust"](https://www.youtube.com/watch?v=DnT-LUQgc7s) presentation by Jon Gjengset.
+> 有关该语言的概述，我建议观看Jon Gjengse的["Consider Rust"](https://www.youtube.com/watch?v=DnT-LUQgc7s) 演讲。
 
-The Rust programming language allows us to go as low-level as needed in terms of hardware and memory management, which is a good fit for the problem of hardware simulation. For example, NES has a Central Processing Unit (CPU), and the majority of supported operations are dealing with unsigned 8-bit arithmetic and bit manipulation. Rust provides excellent capabilities for working with signed and unsigned numbers of different sizes without any overhead. In addition, the Rust ecosystem offers a plethora of libraries that make working on bit-level data as convenient as it gets.
+Rust 编程语言允许我们在硬件和内存管理方面尽可能底层，这非常适合硬件模拟问题。例如，NES 有一个中央处理单元 (CPU)，大多数支持的操作都是处理无符号 8 位算术和位操作。Rust 提供了出色的功能来处理不同大小的有符号和无符号数字，而无需任何开销。此外，Rust 生态系统提供了大量的库，使处理位级数据变得尽可能方便。
 
-The goal is to play NES games on the hardware that we have, meaning we have to simulate NES hardware. The process of simulation alone means that we are introducing significant performance overhead in comparison to running native applications.
-By choosing rust, we hope to get some additional performance budget for our needs. NES hardware specs are pretty modest by today's standards. For example, the NES CPU is about 3000 times slower than modern CPUs. Emulating that in any language should not be a problem. Some folks were able to get playable performance on an emulator written in Python. But it is still nice to have extra power for free.
+目标是在我们拥有的硬件上玩 NES 游戏，这意味着我们必须模拟 NES 硬件。仅模拟过程就意味着与运行本机应用程序相比，我们引入了显着的性能开销。通过选择 rust，我们希望获得一些额外的性能预算来满足我们的需求。按照今天的标准，NES 硬件规格相当适中。例如，NES CPU 比现代 CPU 慢约 3000 倍。用任何语言模拟应该不是问题。有些人能够在用 Python 编写的模拟器上获得可玩的性能。但是免费拥有额外的性能仍然很好。
 
-# Prerequisites
+# 先决条件
 
-I expect the reader to have basic knowledge of the Rust language and understanding primary language constructs and platform capabilities. I'll introduce some features as we go, but others have to be learned elsewhere.
+我希望读者具备 Rust 语言的基本知识，并了解主要的语言结构和平台功能。我将在我们进行的过程中介绍一些功能，但其他功能必须在其他地方学习。
 
-It's also assumed that the reader has a basic understanding of bit arithmetic, boolean logic, and how binary and hexadecimal numbering systems work. Again, NES is a relatively simple platform, and the NES CPU instructions set is small and straightforward, but some basic understanding of computer systems is required.
+还假设读者对位算术、布尔逻辑以及二进制和十六进制编号系统的工作原理有基本的了解。同样，NES 是一个相对简单的平台，NES CPU 指令集小而简单，但需要对计算机系统有一些基本了解。
 
-# References
+# 引用
 
-1. [Nesdev Wiki](http://wiki.nesdev.com/w/index.php/Nesdev_Wiki) - nothing would be possible without it. The one-stop-shop.
-2. [Nintendo Entertainment System Documentation](http://nesdev.com/NESDoc.pdf) - a short tutorial that covers pretty much everything about NES
-3. [Nintendo Age Nerdy Nights](https://nerdy-nights.nes.science/) - a series to help people write games for the NES
-4. [I.Am.Error](https://www.goodreads.com/book/show/23461364-i-am-error) - a book full of histories of the Nintendo Entertainment System platform
-5. [The Elements of Computing Systems](https://www.goodreads.com/book/show/910789.The_Elements_of_Computing_Systems) - everything you need to know about computer systems, how to build Tetris starting from logic gates.
+1. [Nesdev Wiki](http://wiki.nesdev.com/w/index.php/Nesdev_Wiki) - 没有它，一切都将是不可能的。一站式服务。
+2. [Nintendo Entertainment System Documentation](http://nesdev.com/NESDoc.pdf) - 一个简短的教程，几乎涵盖了有关 NES 的所有内容
+3. [Nintendo Age Nerdy Nights](https://nerdy-nights.nes.science/) - 帮助人们为 NES 编写游戏的系列
+4. [I.Am.Error](https://www.goodreads.com/book/show/23461364-i-am-error) - 一本充满任天堂娱乐系统平台历史的书
+5. [The Elements of Computing Systems](https://www.goodreads.com/book/show/910789.The_Elements_of_Computing_Systems) - 你需要知道的关于计算机系统的一切，如何从逻辑门开始构建俄罗斯方块。
 
 
 

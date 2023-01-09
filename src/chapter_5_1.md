@@ -1,29 +1,29 @@
-# Running our first test ROM
+# 运行我们的第一个测试 ROM
 
-The NES dev community has created [large suites of tests](https://wiki.nesdev.com/w/index.php/Emulator_tests) that can be used to check our emulator.
+NES 开发社区已经创建了[大量的测试套件](https://wiki.nesdev.com/w/index.php/Emulator_tests)，可用于检查我们的模拟器。
 
-They cover pretty much every aspect of the console, including quirks and notable bugs that were embedded in the platform.
+它们几乎涵盖了控制台的各个方面，包括嵌入在平台中的怪癖和值得注意的错误。
 
  <div style="text-align:center"><img src="./images/ch5.1/image_1_i_am_error.png" width="40%"/></div>
 
-We will start with the most basic test covering main CPU features: instruction set, memory access, and CPU cycles.
+我们将从涵盖主要 CPU 功能的最基本测试开始：指令集、内存访问和 CPU 周期。
 
-The iNES file of the test is located here: [nestest.nes](http://nickmass.com/images/nestest.nes)
-An execution log accompanies the test, showing what the execution should look like: [nestest.log](https://www.qmtpro.com/~nes/misc/nestest.log)
+测试的 iNES 文件位于：[nestest.nes](http://nickmass.com/images/nestest.nes)
+测试附带 一个执行日志，显示执行应该是什么样子：[nestest.log](https://www.qmtpro.com/~nes/misc/nestest.log)
 
-The next goal is to generate a similar execution log for the CPU while running a program.
+下一个目标是在运行程序时为 CPU 生成类似的执行日志。
 
  <div style="text-align:center"><img src="./images/ch5.1/image_2_log_structure.png" width="80%"/></div>
 
 
-For now, we can ignore the last column and focus on the first five.
+现在，我们可以忽略最后一列而专注于前五列。
 
-The fourth column ```@ 80 = 0200 = 00``` is somewhat interesting.
-* The first number is the actual mem reference that we get if we apply an offset to the requesting address. 0xE1 is using the "Indirect X" addressing mode, and the offset is defined by register X
-* The second number is a 2-byte target address fetched from **[0x80 .. 0x81]**. In this case it's [*0x00*, *0x02*]
-* The third number is content of address cell 0x0200
+第四列 ```@ 80 = 0200 = 00``` 有点意思。
+* 如果我们对请求地址应用偏移量，第一个数字是我们得到的实际内存引用。0xE1 使用“Indirect X”寻址方式，偏移量由寄存器 X 定义
+* 第二个数字是从 **[0x80 .. 0x81]** 获取的 2 字节目标地址。在这个例子，它是[0x00, 0x02]
+* 第三个数字是地址单元 0x0200 的内容
 
-We already have a place to intercept CPU execution:
+我们已经有了拦截 CPU 执行的地方：
 
 ```rust
 impl CPU  {
@@ -43,7 +43,7 @@ impl CPU  {
 }
 ```
 
-All we need to do is to create a callback function that will trace CPU state:
+我们需要做的就是创建一个回调函数来跟踪 CPU 状态：
 
 
 ```rust
@@ -56,9 +56,9 @@ fn main() {
 
 ```
 
-It's vital to get a execution log format precisely like the one used in the provided log.
+获得与提供的日志中使用的完全相同的执行日志格式至关重要。
 
-Following tests can help you to get it right:
+以下测试可以帮助您做对：
 
 ```rust
 
@@ -131,7 +131,7 @@ mod test {
 
 ```
 
-Now it's time to compare our execution log to the golden standard.
+现在是时候将我们的执行日志与黄金标准进行比较了。
 
 
 ```bash
@@ -139,14 +139,14 @@ cargo run > mynes.log
 diff -y mynes.log nestest.log
 ```
 
-> You can use any diff tool you'd like. But because our NES doesn't support CPU clock cycles yet, it makes sense to remove last columns in the provided log:
+> 您可以使用任何您喜欢的差异工具。但是因为我们的 NES 还不支持 CPU 时钟周期，所以删除提供的日志中的最后一列是有意义的：
 > ```bash
 > cat nestest.log | awk '{print substr($0,0, 73)}' > nestest_no_cycle.log
 > diff -y mynes.log nestest_no_cycle.log
 > ```
 
 
-If everything is OK, the first mismatch should look like this:
+如果一切正常，第一个不匹配应该如下所示：
 
 ```
 C6B3  A9 AA     LDA #$AA                        A:FF X:97 Y:4   C6B3  A9 AA     LDA #$AA                        A:FF X:97 Y:4
@@ -155,40 +155,40 @@ C6BC  28        PLP                             A:AA X:97 Y:4   C6BC  28        
                                                               > C6BD  04 A9    *NOP $A9 = 00                    A:AA X:97 Y:4
 ```
 
-I.e., everything that our emulator has produced should exactly match the golden standard, up to line **0xC6BC**. If anything is off before the line, we have a mistake in our CPU implementation and it needs to be fixed.
+即，我们的模拟器生成的所有内容都应该完全符合黄金标准，直到 **0xC6BC**。如果上线前有任何问题，说明我们的 CPU 实现存在错误，需要修复。
 
-But that doesn't explain why our program got terminated. Why didn't we get the perfect match after the line **0xC6BC**?
+但这并不能解释为什么我们的程序会被终止。为什么我们在 **0xC6BC** 行之后没有得到完美匹配？
 
-The program has failed at
+该程序在
 ```bash
 C6BD  04 A9    *NOP $A9 = 00
 ```
 
-It looks like our CPU doesn't know how to interpret the opcode 0x04.
+看起来我们的 CPU 不知道如何解释操作码 0x04。
 
-Here is the bad news: there are about 110 unofficial CPU instructions. Most of the real NES games use them a lot. For us to move on, we will need to implement all of them.
+坏消息是：大约有 110 条非官方 CPU 指令。大多数真正的NES游戏都大量使用它们。为了让我们继续前进，我们需要实现所有这些。
 
-The specs can be found here:
+可以在这里找到规格：
 * [nesdev.com/undocumented_opcodes.txt](http://nesdev.com/undocumented_opcodes.txt)
 * [wiki.nesdev.com/w/index.php/Programming_with_unofficial_opcodes](https://wiki.nesdev.com/w/index.php/Programming_with_unofficial_opcodes)
 * [wiki.nesdev.com/w/index.php/CPU_unofficial_opcodes](https://wiki.nesdev.com/w/index.php/CPU_unofficial_opcodes)
 * [www.oxyron.de/html/opcodes02.html](http://www.oxyron.de/html/opcodes02.html)
 
 
-Remember how to draw an owl?
+还记得如何画猫头鹰吗？
 
-The testing ROM should drive your progress. In the end, the CPU should support 256 instructions. Considering that 1 byte is for the operation code, we've exhausted all possible values.
+测试 ROM 应该会推动您的进步。最后，CPU 应该支持 256 条指令。考虑到 1 个字节用于操作码，我们已经用尽了所有可能的值。
 
-Finally, the first mismatch should happen on this line:
+最后，第一个不匹配应该发生在这一行：
 ```bash
 C68B  8D 15 40  STA $4015 = FF                  A:02 X:FF Y:15 P:25 SP:FB
 ```
-almost at the very end of the NES test log file.
+几乎在 NES 测试日志文件的最后。
 
-That's a good sign. 4015 is a memory map for the APU register, which we haven't implemented yet.
+这是一个好兆头。4015是APU寄存器的内存映射，我们还没有实现。
 
 <br/>
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch5.1" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch5.1" target="_blank">GitHub</a>

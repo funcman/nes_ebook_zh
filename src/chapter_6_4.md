@@ -1,51 +1,51 @@
-# Rendering Static Screen
+# 渲染静态屏幕
 
-At this point, the CPU and PPU are fully functional and working in coordination with each other.
-If we were to load a game into our emulator, the game would execute and most likely run into demo mode.
+此时，CPU 和 PPU 功能齐全，相互协调工作。
+如果我们将游戏加载到我们的模拟器中，游戏将执行并且很可能会进入演示模式。
 
-The problem is that we can't see what's going on inside. Remember how we had intercepted the execution of the snake game to read the game screen state? And then had it rendered via SDL2 canvas? We will have to do something similar here. It's just the data format used by NES is slightly more complicated.
+问题是我们看不到里面发生了什么。还记得我们是如何截取贪吃蛇游戏的执行来读取游戏画面状态的吗？然后让它通过 SDL2 画布渲染？我们将不得不在这里做类似的事情。只是NES使用的数据格式稍微复杂一些。
 
-PPU has to deal with 2 categories of objects:
+PPU 必须处理两类对象：
 
 <div style="text-align:center"><img src="./images/ch6.4/image_8_bg_sprites_game.png" width="80%"/></div>
 
-Both of those are constructed using CHR tiles, we've discussed in the previous chapter.
-In fact, the same tiles can be used both for background and for sprites.
+两者都是使用 CHR 瓦片构建的，我们在上一章中已经讨论过。
+事实上，相同的图块既可以用于背景，也可以用于精灵。
 
-NES uses different memory spaces to hold those categories. The set of possible transformations is also different.
+NES 使用不同的内存空间来保存这些类别。可能的转换集也不同。
 
 
-## Rendering Background
+## 渲染背景
 
 <!-- <div style="text-align:center"><img src="./images/ch6.4/image_1_pacman_bg.png" width="30%"/></div> -->
 
-Three main memory sections are responsible for the state of a background:
-- Pattern Table - one of 2 banks of tiles from CHR ROM
-- Nametable - the state of a screen stored in VRAM
-- Palette table - the information about the real coloring of pixels, stored in internal PPU memory
+三个主内存部分负责后台的状态：
+- Pattern Table - 来自 CHR ROM 的 2 组图块之一
+- Nametable - 存储在 VRAM 中的屏幕状态
+- Palette table - 有关像素真实颜色的信息，存储在内部 PPU 内存中
 
-NES Screen background screen is composed of 960 tiles (a tile being 8x8 pixels: `256 / 8 * 240 / 8 = 960`)
-Each tile is represented by one byte in VRAM in the space called Nametable.
+NES 屏幕背景屏幕由 960 个图块（一个图块为 8x8 像素：`256 / 8 * 240 / 8 = 960`）
+每个图块在称为 Nametable 的空间中由 VRAM 中的一个字节表示。
 
 <div style="text-align:center"><img src="./images/ch6.4/image_2_nametable.png" width="100%"/></div>
 
-> Using a byte in nametable PPU can address only 256 elements within a single bank in pattern table.
-> Control register decides which of two banks should be used for background (and which one should be used for sprites).
+> 在可命名的 PPU 中使用一个字节只能寻址模式表中单个 bank 中的 256 个元素。
+> 控制寄存器决定两个组中的哪一个应该用于背景（以及哪一个应该用于精灵）。
 > <div style="text-align:left"><img src="./images/ch6.4/image_3_control_register_highlight.png" width="50%"/></div>
 
-In addition to 960 bytes for tiles, a nametable holds 64 bytes that specify color palette, we will discuss later. In total, a single frame is defined as 1024 bytes (960 + 64). PPU VRAM can simultaneously hold two nametables - the states of two frames.
+除了瓦片的 960 字节外，命名表还包含 64 字节用于指定调色板，我们将在后面讨论。总的来说，单个帧定义为 1024 字节 (960 + 64)。PPU VRAM 可以同时保存两个命名表——两个帧的状态。
 
-Two additional nametables that exist in the address space of the PPU must be either mapped to existing tables or to extra RAM space on a cartridge.
-[More details](http://wiki.nesdev.com/w/index.php/Mirroring).
+PPU 地址空间中存在的两个附加命名表必须映射到现有表或磁带上的额外 RAM 空间。 
+[更多细节](http://wiki.nesdev.com/w/index.php/Mirroring)。
 
-Nametables are populated by CPU during program execution (using Addr and Data registers that we've implemented). It's entirely determined by game code. All we need to do is to read the correct part of the VRAM.
+名称表在程序执行期间由 CPU 填充（使用我们已经实现的 Addr 和 Data 寄存器）。这完全由游戏代码决定。我们需要做的就是读取 VRAM 的正确部分。
 
-The algorithm to draw current background:
-1) Determine which nametable is being used for the current screen (by reading bit 0 and bit 1 from Control register)
-2) Determine which CHR ROM bank is used for background tiles (by reading bit 4 from Control Register)
-3) Read 960 bytes from the specified nametable and draw a 32x30 tile-based screen
+绘制当前背景的算法：
+1) 确定当前屏幕正在使用哪个命名表（通过从控制寄存器中读取位 0 和位 1）
+2) 确定哪个 CHR ROM bank 用于背景图块（通过从控制寄存器读取位 4）
+3) 从指定的 nametable 中读取 960 个字节并绘制一个 32x30 的基于 tile 的屏幕
 
-Let's add ```render``` function to a new `render` module:
+我们向 ```render``` 添加新的 `渲染` 模块：
 
 ```rust
 pub mod frame;
@@ -86,20 +86,20 @@ pub fn render(ppu: &NesPPU, frame: &mut Frame) {
 
 ```
 
-> Note: We are still using randomly picked colors from a system palette just to see shapes
+> 注意：我们仍然使用从系统调色板中随机挑选的颜色来查看形状
 
-Again, we need to intercept the program execution to read the screen state.
-On the real console the PPU is drawing one pixel each PPU clock cycle. However, we can take a shortcut. Instead of reading part of the screen state on each PPU clock tick, we can wait until the full screen is ready and read in one go.
+同样，我们需要拦截程序执行以读取屏幕状态。
+在真实控制台上，PPU 在每个 PPU 时钟周期绘制一个像素。但是，我们可以走捷径。与其在每个 PPU 时钟滴答上读取部分屏幕状态，我们可以等到全屏准备好并一口气读取。
 
-> **WARNING** This is quite a drastic simplification that limits the types of games it will be possible to play on the emulator. </br><br/>More advanced games used a lot of tricks to enrich the gaming experience.
-> For example, changing scroll in the middle of the frame (<a href="https://wiki.nesdev.com/w/index.php/PPU_scrolling#Split_X_scroll">split scroll</a>) or changing palette colors. <br/><br/>
-> This simplification wouldn't affect first-gen NES games much. The majority of NES games would require more accuracy in PPU emulation, however.
+> **警告** 这是一个相当大的简化，它限制了可以在模拟器上玩的游戏类型。</br><br/>更高级的游戏使用了很多技巧来丰富游戏体验。
+> 例如，更改框架中间的滚动 (<a href="https://wiki.nesdev.com/w/index.php/PPU_scrolling#Split_X_scroll">s拆分滚动</a>) 或更改调色板颜色。<br/><br/>
+> 这种简化不会对第一代 NES 游戏产生太大影响。然而，大多数 NES 游戏在 PPU 仿真中需要更高的准确性。
 
-On the real console, PPU is actively drawing screen state on a TV screen during 0 - 240 scanlines; during scanlines 241 - 262, the CPU is updating the state of PPU for the next frame, then the cycle repeats.
+在真实控制台上，PPU 在 0 - 240 条扫描线期间主动在电视屏幕上绘制屏幕状态；在扫描线 241 - 262 期间，CPU 正在为下一帧更新 PPU 的状态，然后循环重复。
 
-One way to intercept is to read the screen state right after NMI interrupt - when PPU is done rendering the current frame, but before CPU starts creating the next one.
+一种拦截方法是在 NMI 中断之后立即读取屏幕状态 - 当 PPU 完成渲染当前帧时，但在 CPU 开始创建下一个帧之前。
 
-First lets add callback to the bus, that will be called every time PPU triggers NMI:
+首先让我们为总线添加回调，每次 PPU 触发 NMI 时都会调用它：
 
 ```rust
 ub struct Bus<'call> {
@@ -130,7 +130,7 @@ impl<'a> Bus<'a> {
 }
 ```
 
-Then lets tweak the ```tick``` function:
+然后让我们调整 ```tick``` 函数：
 
 ```rust
 impl<'a> Bus<'a> {
@@ -149,7 +149,7 @@ impl<'a> Bus<'a> {
 }
 ```
 
-Then we can connect gameloop, interrupt callback and render function:
+然后我们可以连接游戏循环、中断回调和渲染函数：
 
 ```rust
 fn main() {
@@ -188,40 +188,40 @@ fn main() {
 }
 ```
 
-It's working! Beau·ti·ful.
+它正在工作！漂~ 亮~~。
 
 
 <div style="text-align:center"><img src="./images/ch6.4/image_4_pacman_result.png" width="30%"/></div>
 
-Now let's fix the colors.
+现在让我们修复颜色。
 
-## Working with Colors
+## 使用颜色
 
-NES Console could generate 52 different colors on a TV screen. Those colors constitute the hardwired System Palette of the console.
+NES游戏机可以在电视屏幕上生成 52 种不同的颜色。这些颜色构成了控制台的硬连线系统调色板。
 
-However, a single screen can use only 25 colors simultaneously: 13 background colors and 12 for sprites.
+但是，单个屏幕只能同时使用 25 种颜色：13 种背景颜色和 12 种用于精灵。
 
-NES had internal memory RAM to store palette settings.
-The space is divided into 8 palettes tables: 4 for background and 4 for sprites. Each palette contains three colors.
-Remember that a pixel in a tile was coded using 2 bits - that's 4 possible values. 0b00 is a special one.
+NES 有内存 RAM 来存储调色板设置。
+该空间分为 8 个调色板表：4 个用于背景，4 个用于精灵。每个调色板包含三种颜色。
+请记住，图块中的像素是使用 2 位编码的 - 这是 4 个可能的值。0b00 是一个特殊的。
 
-> **0b00** for *background* tile means using Universal background color (stored at **0x3F00**).
+> *背景*图块的 **0b00** 表示使用通用背景颜色（存储在 **0x3F00**）。
 >
-> For *sprites* - **0b00** means that the pixel is transparent
+> 对于精灵 - **0b00** 意味着像素是透明的
 
 
 <div style="text-align:center"><img src="./images/ch6.4/image_5_palette_table.png" width="100%"/></div>
 
-A single tile can be drawn using only one palette from the palette table.
-For background tiles, the last 64 bytes of each nametable are reserved for assigning a specific palette to a part of the background. This section is called an attribute table.
+可以仅使用调色板表中的一个调色板来绘制单个图块。
+对于背景图块，每个名称表的最后 64 字节保留用于将特定调色板分配给背景的一部分。此部分称为属性表。
 
-A byte in an attribute table controls palettes for 4 neighboring meta-tiles. (a meta-tile is a space composed of 2x2 tiles)
-To say it another way, 1 byte controls which palettes are used for 4x4 tile blocks or 32x32 pixels
-A byte is split into four 2-bit blocks and each block is assigning a background palette for four neighboring tiles.
+属性表中的一个字节控制 4 个相邻元图块的调色板。（元瓦片是由 2x2 瓦片组成的空间）
+换句话说，1 个字节控制哪些调色板用于 4x4 瓦片块或 32x32 像素
+一个字节被分成四个 2 位块，每个块分配一个背景四个相邻瓷砖的调色板。
 
 <div style="text-align:center"><img src="./images/ch6.4/image_6_attribute_table.png" width="70%"/></div>
 
-First let's extract the palette for a background tile specified by its row and column position on the screen:
+首先，让我们提取由其在屏幕上的行和列位置指定的背景图块的调色板：
 
 ```rust
 fn bg_pallette(ppu: &NesPPU, tile_column: usize, tile_row : usize) -> [u8;4] {
@@ -241,7 +241,7 @@ fn bg_pallette(ppu: &NesPPU, tile_column: usize, tile_row : usize) -> [u8;4] {
 }
 ```
 
-And just rewire our color lookup in `render` function from using randomly picked colors to the actual ones:
+只需将我们的颜色查找 `render` 函数从使用随机选择的颜色重新连接到实际颜色即可：
 
 ```rust
 pub fn render(ppu: &NesPPU, frame: &mut Frame) {
@@ -276,24 +276,24 @@ pub fn render(ppu: &NesPPU, frame: &mut Frame) {
 }
 ```
 
-That's it.
+就是这样。
 
-## Rendering sprites.
+## 渲染精灵。
 
-Rendering sprites is somewhat similar, but a bit easier.
-NES had an internal RAM for storing states of all sprites in the frame, so-called Object Attribute Memory (OAM).
+渲染精灵有点相似，但更容易一些。
+NES 有一个内部 RAM，用于存储帧中所有精灵的状态，即所谓的对象属性存储器 (OAM)。
 
-It had 256 bytes of RAM and reserved 4 bytes for each sprite. This gives an option of having 64 tiles on a screen simultaneously (but keep in mind that a single object on a screen usually consists of at least 3-4 tiles).
+它有 256 字节的 RAM，并为每个精灵保留 4 字节。这提供了在屏幕上同时显示 64 个图块的选项（但请记住，屏幕上的单个对象通常至少包含 3-4 个图块）。
 
-CPU has to option of updating OAM Table:
-- using OAM Addr and OAM Data PPUT registers, updating one byte at a time.
-- bulk updating the whole table by transferring 256 bytes from CPU RAM using OAM DMA
+CPU 必须选择更新 OAM 表：
+- 使用 OAM Addr 和 OAM Data PPUT 寄存器，一次更新一个字节。
+- 通过使用 OAM DMA 从 CPU RAM 传输 256 个字节来批量更新整个表
 
-In comparison to background tiles, a sprite tile can be shown anywhere in a 256x240 screen. Each OAM record has 2 bytes reserved for X and Y coordinates, one byte is used to select a tile pattern from the pattern table. And the remaining byte specifies how the object should be drawn (for example, PPU can flip same tile horizontally or vertically)
+与背景图块相比，精灵图块可以显示在 256x240 屏幕中的任何位置。每个 OAM 记录有 2 个字节为 X 和 Y 坐标保留，一个字节用于从模式表中选择一个平铺模式。剩下的字节指定应该如何绘制对象（例如，PPU 可以水平或垂直翻转同一个图块）
 
-NES Dev Wiki provides a pretty solid specification of [each byte in the OAM record](http://wiki.nesdev.com/w/index.php/PPU_OAM)
+NES Dev Wiki 为[OAM 记录中的每个字节](http://wiki.nesdev.com/w/index.php/PPU_OAM)提供了相当可靠的规范
 
-To render all visible sprites, we just need to scan through oam_data space and parse out every 4 bytes into a sprite:
+要渲染所有可见的精灵，我们只需要扫描 oam_data 空间并将每 4 个字节解析为一个精灵：
 
 ```rust
 
@@ -349,7 +349,7 @@ pub fn render(ppu: &NesPPU, frame: &mut Frame) {
    }
 ```
 
-The sprite palette lookup is very easy:
+精灵调色板查找非常简单：
 
 ```rust
 fn sprite_palette(ppu: &NesPPU, pallete_idx: u8) -> [u8; 4] {
@@ -366,10 +366,10 @@ fn sprite_palette(ppu: &NesPPU, pallete_idx: u8) -> [u8; 4] {
 <div style="text-align:center"><img src="./images/ch6.4/image_7_pacman_chrs.png" width="30%"/></div>
 
 
-Alright. Looks better now.
+好的。现在看起来好多了。
 
 <br/>
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch6.4" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch6.4" target="_blank">GitHub</a>

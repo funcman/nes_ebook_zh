@@ -1,15 +1,14 @@
-# Running our first game
+# 运行我们的第一个游戏
 
  <div style="text-align:center"><img src="./images/ch3.4/image_1_progress.png" width="100%"/></div>
 
-Great, you've made it this far. What we are going to do next is to take a bit of a detour.
-The snake game was introduced in this article: [Easy 6502](https://skilldrick.github.io/easy6502/#snake). In fact, it is not a true NES game. It is built with 6502 instructions and uses quite different memory mappings.
+太好了，你已经做到了这一点。我们接下来要做的就是绕道而行。贪吃蛇游戏介绍在这篇文章中：[Easy 6502](https://skilldrick.github.io/easy6502/#snake)。事实上，它并不是真正的NES游戏。它使用 6502 条指令构建，并使用完全不同的内存映射。
 
-However, it's a fun way to validate that our CPU is truly functional, and it's fun to play the first game.
+然而，这是一种验证我们的 CPU 是否真正正常工作的有趣方式，并且玩第一个游戏也很有趣。
 
-The majority of logic we are to implement now would be reused some way or another when we will be implementing rendering in PPU, so nothing is wasted effort.
+当我们将在 PPU 中实现渲染时，我们现在要实现的大部分逻辑都会以某种方式重用，因此不会浪费任何精力。
 
-The machine code of the game:
+游戏机器码：
 
 ```rust
 
@@ -38,9 +37,9 @@ let game_code = vec![
 
 ```
 
-You can find assembly code with comments [here](https://gist.github.com/wkjagt/9043907).
+您可以在[这里](https://gist.github.com/wkjagt/9043907)找到带有注释的汇编代码。
 
-The memory mapping that the game uses:
+游戏使用的内存映射：
 
 | Address space | Type  | Description  |
 |---|---|---|
@@ -48,13 +47,13 @@ The memory mapping that the game uses:
 | **0xFF** | Input | A code of the last pressed Button |
 | **[0x0200..0x0600]**  | Output |  Screen.<br/>Each cell represents the color of a pixel in a 32x32 matrix.<br/><br/> The matrix starts from top left corner, i.e.<br/><br/> **0x0200** - the color of (0,0) pixel <br/> **0x0201** - (1,0) <br/> **0x0220** - (0,1) <br/><br/> <div style="text-align:left"><img src="./images/ch3.4/image_2_screen_matrix.png" width="50%"/></div> | 
 
-The game executes standard game loop:
-* read input from a user
-* compute game state
-* render game state to a screen
-* repeat
+游戏执行标准游戏循环：
+* 读取用户的输入
+* 计算游戏状态
+* 将游戏状态渲染到屏幕
+* 重复
 
-We need to intercept this cycle to get user input into the input mapping space and render the state of the screen. Let's modify our CPU run cycle:
+我们需要拦截这个循环来获取用户输入到输入映射空间并渲染屏幕的状态。让我们修改一下我们的 CPU 运行周期：
 
 ```rust
 impl CPU {
@@ -81,9 +80,9 @@ impl CPU {
 }
 ```
 
-Now, the client code can provide a callback that will be executed before every opcode interpretation cycle.
+现在，客户端代码可以提供一个回调，该回调将在每个操作码解释周期之前执行。
 
-The sketch of the main method:
+主要方法示意图：
 
 ```rust
 fn main() {
@@ -107,12 +106,11 @@ fn main() {
 }
 ```
 
-For our input/output, we would be using a cross-platform library
-that's popular in game development, the [Simple DirectMedia Layer library](https://www.libsdl.org/).
+对于我们的输入/输出，我们将使用游戏开发中流行的跨平台库[Simple DirectMedia Layer library](https://www.libsdl.org/)。
 
-Luckily for us, there is a convenient crate that provides Rust bindings for the library: [rust-sdl2](https://rust-sdl2.github.io/rust-sdl2/sdl2/)
+幸运的是，有一个方便的 crate 为库提供 Rust 绑定：[rust-sdl2](https://rust-sdl2.github.io/rust-sdl2/sdl2/)
 
-0) Let's add it to Cargo.toml:
+0) 让我们将它添加到 Cargo.toml：
 
 ```toml
 # ...
@@ -125,7 +123,7 @@ sdl2 = "0.34.0"
 rand = "=0.7.3"
 ```
 
-1) First, we need to initialize SDL:
+1) 首先，我们需要初始化 SDL：
 
 ```rust
 use sdl2::event::Event;
@@ -151,12 +149,12 @@ fn main() {
 }
 ```
 
-Because our game screen is tiny (32x32 pixels), we set the scale factor to 10.
+因为我们的游戏屏幕很小（32x32 像素），所以我们将比例设置为 10。
 
-> Using `.unwrap()` is justifiable here because it's the outer layer of our application.
-> There are no other layers that potentially can handle Err values and do something about it.
+> 在这里使用 `.unwrap()` 是合理的，因为它是我们应用程序的外层。
+> 没有其他层可以潜在地处理 Err 值并对其进行处理。
 
-Next, we will create a texture that would be used for rendering:
+接下来，我们将创建一个用于渲染的纹理：
 
 ```rust
 //...
@@ -166,9 +164,9 @@ Next, we will create a texture that would be used for rendering:
 //...
 ```
 
-We are telling SDL that our texture has a size of 32x32, and that each pixel is to be represented by 3 bytes (for *R*, *G* and *B* colors). This means that the texture will be represented by a 32x32x3 array of bytes.
+我们告诉 SDL，我们的纹理大小为 32x32，每个像素由 3 个字节表示（用于 R、G 和 B 颜色）。这意味着纹理将由 32x32x3 字节数组表示。
 
-2) Handling user input is straightforward:
+2) 处理用户输入很简单：
 
 ```rust
 fn handle_user_input(cpu: &mut CPU, event_pump: &mut EventPump) {
@@ -195,11 +193,10 @@ fn handle_user_input(cpu: &mut CPU, event_pump: &mut EventPump) {
 }
 ```
 
-3) Rendering the screen state is a bit trickier.
-Our program assumes 1 byte per pixel, while SDL expects 3 bytes.
-<br/>From the game point of view it doesn't matter much how we map colors, the only two color maps that are essential are:
-* 0 - Black
-* 1 - White
+3) 渲染屏幕状态有点棘手。我们的程序假定每个像素 1 个字节，而 SDL 期望 3 个字节。
+<br/>从游戏的角度来看，我们如何映射颜色并不重要，唯一重要的两个颜色映射是：
+* 0 - 黑色
+* 1 - 白色
 
 ```rust
 fn color(byte: u8) -> Color {
@@ -217,17 +214,17 @@ fn color(byte: u8) -> Color {
 }
 ```
 
-Now we can transform the CPU screen map into 3 bytes like this:
+现在我们可以将 CPU 屏幕映射转换为 3 个字节，如下所示：
 
 ```rust
     let color_idx = cpu.mem_read(i as u16);
     let (b1, b2, b3) = color(color_idx).rgb();
 ```
 
-A caveat with this is that we don't want to force updating the SDL canvas if the screen state hasn't changed.
-Remember that the CPU will call our callback after each instruction, and most of the time those instructions have nothing to do with the screen. Meanwhile, updating the canvas is a heavy operation.
+需要注意的是，如果屏幕状态没有改变，我们不想强制更新 SDL 画布。
+请记住，CPU 会在每条指令之后调用我们的回调，并且大多数时候这些指令与屏幕无关。同时，更新画布是一项繁重的操作。
 
-We can keep track of the screen state by creating a temp buffer that will be populated from the screen state. Only in the case of screen changes, we would update SDL canvas.
+我们可以通过创建将从屏幕状态填充的临时缓冲区来跟踪屏幕状态。只有在屏幕发生变化的情况下，我们才会更新 SDL 画布。
 
 ```rust
 fn read_screen_state(cpu: &CPU, frame: &mut [u8; 32 * 3 * 32]) -> bool {
@@ -248,7 +245,7 @@ fn read_screen_state(cpu: &CPU, frame: &mut [u8; 32 * 3 * 32]) -> bool {
 }
 ```
 
-And the game loop becomes:
+游戏循环变为：
 
 ```rust
 fn main() {
@@ -273,9 +270,9 @@ fn main() {
 }
 ```
 
-The last sleep statement was added to slow things down so that the game runs at a playable pace.
+添加了最后一个睡眠语句以减慢速度，以便游戏以可玩的速度运行。
 
-And there you have it, the first game running on our emulator.
+这就是我们模拟器上运行的第一款游戏。
 
  <div style="text-align:center"><img src="./images/ch3/snk_game.gif" width="40%"/></div>
 
@@ -283,4 +280,4 @@ And there you have it, the first game running on our emulator.
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch3.4" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch3.4" target="_blank">GitHub</a>

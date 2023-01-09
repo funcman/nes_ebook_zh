@@ -1,34 +1,34 @@
-# Let's get started.
+# 让我们开始吧。
 
  <div style="text-align:center"><img src="./images/ch3/chapter_logo.png" width="20%"/></div>
 
-Let's try to interpret our first program. The program looks like this:
+让我们尝试解释我们的第一个程序。该程序如下所示：
 
 
 ```
 a9 c0 aa e8 00
 ```
 
-This is somewhat cryptic as it isn't designed to be read by humans. We can decipher what's going on more easily if we represent the program in [assembly code](https://en.wikipedia.org/wiki/Assembly_language):
+这有点神秘，因为它不是为人类阅读而设计的。如果我们用[汇编代码](https://en.wikipedia.org/wiki/Assembly_language)表示程序，我们可以更容易地破译发生了什么：
 
 <div style="text-align:center"><img src="./images/ch3.1/image_1_assembler.png" width="40%"/></div>
 
-Now it's more readable: it consists of 4 instructions, and the first instruction has a parameter.
+现在它更具可读性：它由 4 条指令组成，第一条指令有一个参数。
 
-Let's interpret what's going on by referencing the opcodes from the [6502 Instruction Reference](https://www.nesdev.org/obelisk-6502-guide/reference.html)
+让我们通过引用[6502指令参考](https://www.nesdev.org/obelisk-6502-guide/reference.html)中的操作码来解释发生了什么
 
 <div style="text-align:center"><img src="./images/ch3.1/image_2_lda_spec.png" width="50%"/></div>
 
-It looks like that the command loads a hexadecimal value 0xC0 into the accumulator CPU register. It also has to update some bits in Processor Status register P (namely, bit 1 - Zero Flag and bit 7 - Negative Flag).
+看起来该命令将十六进制值 0xC0 加载到累加器 CPU 寄存器中。它还必须更新处理器状态寄存器 P 中的一些位（即第 1 位 - 零标志和第 7 位 - 负标志）。
 
 
-> **LDA** spec shows that the opcode **0xA9** has one parameter. The instruction size is 2 bytes: one byte is for operation code itself (standard for all NES CPU opcodes), and the other is for a parameter.
+> **LDA** 规范显示操作码0xA9有一个参数。指令大小为 2 个字节：一个字节用于操作码本身（所有 NES CPU 操作码的标准），另一个用于参数。
 >
-> NES Opcodes can have no explicit parameters or one explicit parameter. For some operations, the explicit parameter can take 2 bytes. And in that case, the machine instruction would occupy 3 bytes.
+> NES操作码可以没有显性参数或只有一个显性参数。对于某些操作，显式参数可以占用2个字节。而在这种情况下，机器指令将占用3个字节。
 >
-> It is worth mentioning that some operations use CPU registers as implicit parameters.
+> 值得一提的是，有些操作使用CPU寄存器作为隐性参数。
 
-Let's sketch out how our CPU might look like from a high-level perspective:
+让我们从高层次的角度勾勒出我们的 CPU 的样子：
 
 ```rust
 pub struct CPU {
@@ -52,15 +52,15 @@ impl CPU {
 }
 ```
 
-Note that we introduced a program counter register that will help us track our current position in the program. Also, note that the interpret method takes a mutable reference to self as we know that we will need to modify **register_a** during the execution.
+请注意，我们引入了一个程序计数器寄存器，它将帮助我们跟踪我们在程序中的当前位置。另外，请注意，解释方法采用对 self 的可变引用，因为我们知道我们需要在执行期间修改 **register_a** 。
 
-The CPU works in a constant cycle:
-* Fetch next execution instruction from the instruction memory
-* Decode the instruction
-* Execute the Instruction
-* Repeat the cycle
+CPU 以恒定周期工作：
+* 从指令存储器中取出下一条执行指令
+* 解码指令
+* 执行指令
+* 重复循环
 
-Lets try to codify exactly that:
+让我们尝试更准确地编码：
 
 ```rust 
 pub fn interpret(&mut self, program: Vec<u8>) {
@@ -77,7 +77,7 @@ pub fn interpret(&mut self, program: Vec<u8>) {
 }
 ```
 
-So far so good. Endless loop? Nah, it's gonna be alright. Now let's implement the **LDA (0xA9)** opcode:
+到现在为止还挺好。无限循环？不，会没事的。现在让我们实现LDA (0xA9) **LDA (0xA9)** 操作码：
 
 ```rust
         match opscode {
@@ -103,11 +103,11 @@ So far so good. Endless loop? Nah, it's gonna be alright. Now let's implement th
         }
 ```
 
-We are not doing anything crazy here, just following the spec and using rust constructs to do binary arithmetic.
+我们在这里并没有做任何疯狂的事情，只是遵循规范并使用 rust 结构进行二进制运算。
 
-> It's essential to set or unset CPU flag status depending on the results.
+> 根据结果设置或取消设置 CPU 标志状态至关重要。
 
-Because of the endless loop, we won't be able to test this functionality yet. Before moving on, let's quickly implement **BRK (0x00)** opcode:
+由于无限循环，我们还不能测试这个功能。在继续之前，让我们快速实现 **BRK (0x00)** 操作码：
 
 ```rust
         match opcode {
@@ -119,7 +119,7 @@ Because of the endless loop, we won't be able to test this functionality yet. Be
         }
 ```
 
-Now let's write some tests:
+现在让我们编写一些测试：
 
 
 ```rust
@@ -145,15 +145,15 @@ mod test {
 }
 ```
 
-> Do you think that's enough? What else should we check?
+> 你认为这就够了吗？我们还应该检查什么？
 
-Alright. Let's try to implement another opcode, shall we?
+好的。让我们尝试实现另一个操作码，好吗？
 
 <div style="text-align:center"><img src="./images/ch3.1/image_3_tax_spec.png" width="50%"/></div>
 
-This one is also straightforward: copy a value from A to X, and update status register.
+这也很简单：将值从 A 复制到 X，并更新状态寄存器。
 
-We need to introduce **register_x** in our CPU struct, then we can implement the **TAX (0xAA)** opcode:
+我们需要在我们的 CPU 结构中引入 **register_x** 然后我们可以实现 **TAX (0xAA)** 操作码：
 
 ```rust
 pub struct CPU {
@@ -188,7 +188,7 @@ impl CPU {
 }
 ```
 
-Don't forget to write tests:
+不要忘记编写测试：
 
 
 ```rust 
@@ -202,11 +202,11 @@ Don't forget to write tests:
    }
 ```
 
-Before moving to the next opcode, we have to admit that our code is quite convoluted:
-* the interpret method is already complicated and does multiple things
-* there is a noticeable duplication between the way **TAX** and **LDA** are implemented.
+在转到下一个操作码之前，我们必须承认我们的代码非常复杂：
+* 解释方法已经很复杂并且做了很多事情
+* **TAX** 和 **LDA** 的实施方式之间存在明显的重复。
 
-Let's fix that:
+让我们解决这个问题：
 
 ```rust 
 // ... 
@@ -254,15 +254,15 @@ Let's fix that:
 }
 ```
 
-Ok. The code looks more manageable now. Hopefully, all tests are still passing.
+行。代码现在看起来更易于管理。希望所有测试仍然通过。
 
-I cannot emphasize enough the importance of writing tests for all of the opcodes we are implementing. The operations themselves are almost trivial, but tiny mistakes can cause unpredictable ripples in game logic.
+我不能足够强调为我们正在实现的所有操作码编写测试的重要性。操作本身几乎是微不足道的，但微小的错误可能会在游戏逻辑中引起不可预知的涟漪。
 
 <div style="text-align:center"><img src="./images/ch3.1/image_4_pacman_bug.gif" width="30%"/></div>
 
-Implementing that last opcode from the program should not be a problem, and I'll leave this exercise to you.
+从程序中实现最后一个操作码应该不是问题，我将把这个练习留给你。
 
-When you are done, these tests should pass:
+完成后，这些测试应该通过：
 
 ```rust 
    #[test]
@@ -286,4 +286,4 @@ When you are done, these tests should pass:
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch3.1" target="_blank">GitHub</a>.
+> 本章的完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch3.1" target="_blank">GitHub</a>.

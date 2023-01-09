@@ -1,46 +1,46 @@
-# Emulating PPU Registers
-PPU has its own memory map, composed of PPU RAM, CHR ROM, and address space mirrors.
-PPU exposes 8 I/O Registers that are used by the CPU for communication. Those registers are mapped to **[0x2000 - 0x2007]** in the CPU memory map (and mirrored every 8 bytes through the region of **[0x2008 .. 0x3FFF]**)
+# 模拟 PPU 寄存器
+PPU 有自己的内存映射，由 PPU RAM、CHR ROM 和地址空间镜像组成。
+PPU 公开了 8 个 I/O 寄存器，供 CPU 用于通信。这些寄存器映射到 CPU 内存映射中的 **[0x2000 - 0x2007]** （并通过 **[0x2008 .. 0x3FFF]** 的区域每 8 个字节镜像一次）
 
  <div style="text-align:center"><img src="./images/ch6.1/image_1_ppu_registers_memory.png" width="70%"/></div>
 
-To be precise, PPU has its own bus used to communicate with RAM and cartridge CHR ROM. But we don't necessarily need to emulate the bus.
+准确地说，PPU 有自己的总线用于与 RAM 和卡带 CHR ROM 通信。但我们不一定需要模拟总线。
 
-2 registers are responsible for accessing PPU memory map:
-* Address (0x2006) & Data (0x2007) - provide access to the memory map available for PPU
+2个寄存器负责访问 PPU 内存映射：
+* 地址 (0x2006) 和数据 (0x2007) - 提供对可用于 PPU 的内存映射的访问
 
-3 registers control internal memory(OAM) that keeps the state of sprites
-* OAM Address (0x2003) & OAM Data (0x2004) - Object Attribute Memory - the space responsible for sprites
-* Direct Memory Access (0x4014) - for fast copying of 256 bytes from CPU RAM to OAM
+3个寄存器控制保持精灵状态的内部存储器（OAM）
+* OAM 地址 (0x2003) & OAM 数据 (0x2004) - 对象属性内存 - 负责精灵的空间
+* 直接内存访问 (0x4014) - 用于将 256 字节从 CPU RAM 快速复制到 OAM
 
-3 Write-only registers are controlling PPU actions:
-* Controller (0x2000) - instructs PPU on general logic flow (which memory table to use, if PPU should interrupt CPU, etc.)
-* Mask (0x2001) - instructs PPU how to render sprites and background
-* Scroll (0x2005) - instructs PPU how to set a viewport
+3个只写寄存器控制PPU的动作：
+* 控制器 (0x2000) - 指示 PPU 处理一般逻辑流程（使用哪个内存表，PPU 是否应该中断 CPU 等）
+* 掩码 (0x2001) - 指示 PPU 如何渲染精灵和背景
+* 卷动 (0x2005) - 指示 PPU 如何设置视野
 
-One read-only register is used for reporting PPU status:
-* Status 0x2002
+一个只读寄存器用于报告 PPU 状态：
+* 状态 0x2002
 
-The full spec of the registers can be found on [NES Dev wiki](http://wiki.nesdev.com/w/index.php/PPU_registers).
+寄存器的完整规范可以在[NES Dev wiki](http://wiki.nesdev.com/w/index.php/PPU_registers)上找到。
 
  <div style="text-align:center"><img src="./images/ch6.1/image_2_cpu_ppu_communication.png" width="70%"/></div>
 
-Two communication channels exist between CPU and PPU:
-* CPU is driving communication through IO registers
-* PPU sends an interrupt signal to CPU upon entering V-BLANK period
+CPU 和 PPU 之间存在两个通信通道：
+* CPU 正在通过 IO 寄存器驱动通信
+* PPU 在进入 V-BLANK 周期时向 CPU 发送中断信号
 
-> PPU execution life cycle was tightly coupled with the electron beam of the TV screen.
+> PPU 执行生命周期与电视屏幕的电子束紧密耦合。
 >
-> The PPU renders 262 scanlines per frame. (0 - 240 are visible scanlines, the rest are so-called vertical overscan)<br/>
-> Each scanline lasts for 341 PPU clock cycles, with each clock cycle producing one pixel. (the first 256 pixels are visible, the rest is horizontal overscan)<br/>
-> The NES screen resolution is 320x240, thus scanlines 241 - 262 are not visible.
+> PPU每帧渲染262条扫描线。(0-240是可见的扫描线，其余的是所谓的垂直过扫描)<br/>
+> 每个扫描线持续341个PPU时钟周期，每个时钟周期产生一个像素。(前256个像素是可见的，其余的是水平过扫描)<br/>
+> NES的屏幕分辨率为320x240，因此扫描线241 - 262不可见。
 >
 > <div style="text-align:center"><img src="./images/ch6.1/image_7_scanlines_with_viewer.png" width="30%"/></div>
-> Upon entering the 241st scanline, PPU triggers VBlank NMI on the CPU. PPU makes no memory accesses during 241-262 scanlines, so PPU memory can be freely accessed by the program. The majority of games play it safe and update the screen state only during this period, essentially preparing the view state for the next frame.
+> 在进入第241条扫描线时，PPU在CPU上触发VBlank NMI。在第241-262条扫描线期间，PPU不做任何内存访问，所以PPU内存可以被程序自由访问。大多数游戏为了安全起见，只在这一时期更新屏幕状态，基本上是为下一帧准备视图状态。
 
-## PPU sketch
+## PPU 草图
 
-Initial sketch of out PPU would look like this:
+PPU 的初始草图如下所示：
 
 ```rust
 pub struct NesPPU {
@@ -53,14 +53,14 @@ pub struct NesPPU {
 }
 ```
 
-Where:
-* **chr_rom** - visuals of a game stored on a cartridge
-* **palette_table** - internal memory to keep palette tables used by a screen
-* **vram** - 2 KiB banks of space to hold background information
-* and **oam_data** - internal memory to keep state of sprites
+在那里：
+* **chr_rom** - 存储在卡带上的游戏的视觉效果
+* **palette_table** - 用于保存屏幕使用的调色板表的内部存储器
+* **vram** - 2 KiB 的空间存储背景信息
+* 和 **oam_data** - 保持精灵状态的内部存储器
 
 
-Mirroring and chr_rom are specific to each game and provided by a cartridge
+Mirroring 和 chr_rom 特定于每个游戏，由卡带提供
 
 ```rust
 impl NesPPU {
@@ -76,13 +76,14 @@ impl NesPPU {
 }
 ```
 
-## Emulating PPU memory access: Address and Data registers
+## 模拟 PPU 内存访问：地址和数据寄存器
 
-Let's try to emulate two the most complex registers: Address (**0x2006**) and Data(**0x2007**)
+让我们尝试模拟两个最复杂的寄存器：地址（**0x2006**) 和数据（**0x2007**）
 
-There are multiple caveats in the way the CPU can access PPU RAM. Say the CPU wants to access memory cell at 0x0600 PPU memory space:
+CPU 访问 PPU RAM 的方式有多个注意事项。假设 CPU 想要访问 0x0600 PPU 内存空间的内存单元：
 
-1) It has to load the requesting address into the Addr register. It has to write to the register twice - to load 2 bytes into 1-byte register:<br/><br/>
+1) 它必须将请求地址加载到 Addr 寄存器中。它必须两次写入寄存器 - 将 2 个字节加载到 1 个字节的寄存器中：
+<br/><br/>
 
 ```bash
  LDA #$06
@@ -91,33 +92,33 @@ There are multiple caveats in the way the CPU can access PPU RAM. Say the CPU wa
  STA $2006
 ```
 
-Note: it **doesn't** follow *little-endian* notation.
+注意：它 **不** 遵循小端符号。
 
-2) Then, the CPU can request data load from PPU Data register (0x2007)
+2) 然后，CPU 可以请求从 PPU 数据寄存器 (0x2007) 加载数据
 ```bash 
 LDA $2007
 ```
 
-> Because CHR ROM and RAM are considered external devices to PPU, PPU can't return the value immediately. PPU has to fetch the data and keep it in internal buffer.<br/>
-> The first read from 0x2007 would return the content of this internal buffer filled during the previous load operation. From the CPU perspective, this is a dummy read.
+> 因为 CHR ROM 和 RAM 被认为是 PPU 的外部设备，所以 PPU 不能立即返回值。PPU 必须获取数据并将其保存在内部缓冲区中。<br/>
+> 从 0x2007 开始的第一次读取将返回在上一次加载操作期间填充的内部缓冲区的内容。从 CPU 的角度来看，这是一个虚拟读取。
 
-3) CPU has to read from 0x2007 one more time to finally get the value from the PPUs internal buffer.
+3) CPU 必须再从 0x2007 读取一次，才能最终从 PPU 内部缓冲区中获取值。
 
 ```bash 
 LDA $2007
 ```
 
-> Also note that read or write access to 0x2007 increments the PPU Address (0x2006). The increment size is determined by the state of the Control register (0x2000):
+> 另请注意，对 0x2007 的读取或写入访问会增加 PPU 地址 (0x2006)。增量大小由控制寄存器 (0x2000) 的状态决定：
 >  <div style="text-align:left"><img src="./images/ch6.1/image_3_controller_register_spec.png" width="60%"/></div>
 
-The sequence of requests can be illustrated in this diagram:
+下图可以说明请求的顺序：
 
 <div style="text-align:center"><img src="./images/ch6.1/image_4_ppu_ram_sequence.png" width="60%"/></div>
 
->**IMPORTANT:** This buffered reading behavior is specific only to ROM and RAM. <br/>
-> Reading palette data from $3F00-$3FFF works differently. The palette data is placed immediately on the data bus, and hence no dummy read is required.
+>**重要提示：** 这种缓冲读取行为仅特定于 ROM 和 RAM。<br/>
+> 从 $3F00-$3FFF 读取调色板数据的工作方式不同。调色板数据立即放置在数据总线上，因此不需要虚拟读取。
 
-Lets model Address register first:
+让模型地址先注册：
 
 ```rust
 pub struct AddrRegister {
@@ -171,7 +172,7 @@ impl AddrRegister {
 }
 ```
 
-Next, we need to expose this register as being writable:
+接下来，我们需要将此寄存器公开为可写：
 
 ```rust
 pub struct NesPPU {
@@ -187,7 +188,7 @@ impl NesPPU {
 }
 ```
 
-Next, we can sketch out Controller Register:
+接下来，我们可以勾勒出控制器寄存器：
 
 ```rust
 bitflags! {
@@ -239,7 +240,7 @@ impl ControlRegister {
 }
 ```
 
-And also expose it as being writable:
+并将其公开为可写：
 
 ```rust
 pub struct NesPPU {
@@ -256,7 +257,7 @@ impl NesPPU {
 ```
 
 
-Now we can try to implement reading PPU memory:
+现在我们可以尝试实现读取PPU内存：
 
 ```rust
 impl NesPPU {
@@ -287,7 +288,7 @@ impl NesPPU {
 ```
 
 
-We can emulate this internal buffer behavior for RAM and ROM by using a temporary field to hold a value from a previous read request:
+我们可以通过使用临时字段来保存来自先前读取请求的值来模拟 RAM 和 ROM 的这种内部缓冲区行为：
 
 ```rust
 
@@ -320,32 +321,31 @@ impl NesPPU {
 }
 ```
 
-Writing to PPU memory can be implemented in a similar way, just don't forget that writes to 0x2007 also increments Address Register.
+写入 PPU 内存可以以类似的方式实现，只是不要忘记写入 0x2007 也会增加地址寄存器。
 
-## Mirroring
+## 镜像
 
-One thing that isn't covered is how ```mirror_vram_addr``` is implemented.
+没有涉及的一件事是如何 ```mirror_vram_addr``` 实施。
 
-Again the NESDEV wiki provides excellent coverage of this topic: [Mirroring](http://wiki.nesdev.com/w/index.php/Mirroring).
+NESDEV wiki 再次提供了对这个主题的出色报道：[Mirroring](http://wiki.nesdev.com/w/index.php/Mirroring).
 
-VRAM mirroring is tightly coupled with the way NES implements scrolling of the viewport.
-We would spend enough time discussing this in the chapter about Scroll.
-For now, we can just code the mirroring behavior.
+VRAM 镜像与 NES 实现视口滚动的方式紧密结合。
+我们将在有关 卷动 的章节中花足够的时间讨论这个问题。现在，我们可以编写镜像行为。
 
-NES uses 1 KiB of VRAM to represent a single screen state. Having 2 KiB of VRAM onboard means that NES can keep a state of 2 screens.
+NES 使用 1 KiB 的 VRAM 来表示单个屏幕状态。板载 2 KiB VRAM 意味着 NES 可以保持 2 个屏幕的状态。
 
 
-On the PPU memory map, the range ***[0x2000...0x3F00]*** is reserved for Nametables (screens states)- 4 KiB of addressable space. Two "additional" screens have to be mapped to existing ones.
-The way they are mapped depends on the mirroring type, specified by a game (iNES files have this info in the header)
+在 PPU 内存映射中，范围 ***[0x2000...0x3F00]*** 是为命名表（屏幕状态）保留的 - 4 KiB 的可寻址空间。必须将两个“附加”屏幕映射到现有屏幕。
+它们的映射方式取决于游戏指定的镜像类型（iNES 文件在标题中包含此信息）
 
 
 <div style="text-align:center"><img src="./images/ch6.1/image_5_mirroring.png" width="60%"/></div>
 
-For example, for *Horizontal Mirroring*:
-* Address spaces **[0x2000 .. 0x2400]** and **[0x2400 .. 0x2800]** should be mapped to the first 1 KiB of VRAM.
-* Address spaces **[0x2800 .. 0x2C00]** and **[0x2C00 .. 0x3F00]** should be mapped to the second 1 KiB of VRAM.
+例如，对于 *水平镜像*：
+* 地址空间 **[0x2000 .. 0x2400]** 和 **[0x2400 .. 0x2800]** 应映射到 VRAM 的前 1 KiB。
+* 地址空间 **[0x2800 .. 0x2C00]** 和 **[0x2C00 .. 0x3F00]** 应映射到 VRAM 的第二个 1 KiB。
 
-One way to codify that:
+一种编码方式：
 
 ```rust
 impl NesPPU {
@@ -374,9 +374,9 @@ impl NesPPU {
 
 ```
 
-## Connecting PPU to the BUS 
+## 将 PPU 连接到 BUS
 
-One last step is to connect PPU to the BUS:
+最后一步是将 PPU 连接到 BUS：
 
 ```rust
 pub struct Bus {
@@ -400,7 +400,7 @@ impl Bus {
 }
 ```
 
-And provide memory mapping for the registers we've implemented so far:
+并为我们目前实现的寄存器提供内存映射：
 
 
 ```rust
@@ -462,10 +462,10 @@ impl Bus {
 }
 ```
 
-The communication with the rest of the registers is similar. I leave this exercise to the reader.
+与其余寄存器的通信类似。我把这个练习留给读者。
 
 <br/>
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch6.1" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch6.1" target="_blank">GitHub</a>

@@ -1,24 +1,25 @@
-# PPU Scrolling
+# PPU 卷动
 
-Before we start discussing scrolling, we need to clarify one detail. We've discussed that PPU notifies the state of the frame by triggering NMI interrupt, which tells CPU that rendering of the current frame is finished.
-That's not the whole story. PPU has 2 additional mechanisms to tell its progress:
-* [sprite zero hit flag](https://wiki.nesdev.com/w/index.php?title=PPU_OAM&redirect=no#Sprite_zero_hits)
-* [sprite overflow flag](https://wiki.nesdev.com/w/index.php/PPU_sprite_evaluation#Sprite_overflow_bug)
+在我们开始讨论卷动之前，我们需要澄清一个细节。我们已经讨论过 PPU 通过触发 NMI 中断来通知帧的状态，它告诉 CPU 当前帧的渲染已经完成。
+这还不是全部。PPU 有 2 个额外的机制来告诉它的进度：
 
-Both are reported using [PPU status register **0x2002**](https://wiki.nesdev.com/w/index.php/PPU_registers#Status_.28.242002.29_.3C_read)
+* [精灵零命中标志](https://wiki.nesdev.com/w/index.php?title=PPU_OAM&redirect=no#Sprite_zero_hits)
+* [精灵溢出标志g](https://wiki.nesdev.com/w/index.php/PPU_sprite_evaluation#Sprite_overflow_bug)
+
+两者都使用 [PPU 状态寄存器 **0x2002**](https://wiki.nesdev.com/w/index.php/PPU_registers#Status_.28.242002.29_.3C_read) 进行报告
 
 <div style="text-align:center;"><img src="./images/ch8/image_7_sprite_0_hit.png" width="60%"/></div>
 
-Sprite overflow is rarely used because it had a bug that resulted in false positives and false negatives.
-Sprite 0 hit though is used by the majority of games that have scrolling. <br/>It's the way to get mid-frame progress status
-of PPU:
-* put sprite zero on a specific screen location (X, Y)
-* poll status register
-* when sprite_zero_hit changes from 0 to 1 - CPU knows that PPU has finished rendering **[0 .. Y]** scanlines, and on the Y scanline, it's done rendering X pixels.
+Sprite 溢出很少使用，因为它有一个导致误报和漏报的错误。
+大多数具有卷动功能的游戏都使用 Sprite 0 hit。这是获取 PPU 的中帧进度状态的方法：
 
-> This is a very rough simulation of the behavior. The accurate one requires checking opaque pixels of a sprite colliding with opaque pixels of background.
+* 将精灵零放在特定的屏幕位置（X，Y）
+* 轮询状态寄存器
+* 当 sprite_zero_hit 从 0 变为 1 - CPU 知道 PPU 已完成渲染 **[0 .. Y]** 扫描线，并且在 Y 扫描线上，它已完成渲染 X 像素。
 
-We need to codify this behavior in PPU `tick` function:
+> 这是对行为的非常粗略的模拟。准确的需要检查精灵的不透明像素与背景的不透明像素碰撞。
+
+我们需要在 PPU `tick` 函数中编码这种行为：
 
 ```rust
     pub fn tick(&mut self, cycles: u8) -> bool {
@@ -58,55 +59,55 @@ We need to codify this behavior in PPU `tick` function:
 
 ```
 
-Note: the sprite zero hit flag should be erased upon entering VBLANK state.
+注意：精灵零命中标志应在进入 VBLANK 状态时被清除。
 
 
-## Scrolling
+## 卷动
 
-The scroll is one of the primary mechanisms to simulate movement in space in NES games. It's an old idea of moving the viewport against the static background to create an illusion of movement through space.
+卷动是在 NES 游戏中模拟空间运动的主要机制之一。将视野移动到静态背景上以创建在空间中移动的错觉是一个古老的想法。
 
 <div style="text-align:center;"><img src="./images/ch8/image_1_scroll_basics.png" width="80%"/></div>
 
-The scroll is implemented on the PPU level and only affects the rendering of background tiles (those stored in nametables). Sprites (OAM data) are not affected by this.
+卷动在 PPU 级别上实现，仅影响背景图块（存储在名称表中的图块）的渲染。精灵（OAM 数据）不受此影响。
 
-PPU can keep two screens in memory simultaneously (remember one name table - 1024 bytes, and PPU has 2 KiB of VRAM). This doesn't look like a lot, but this is enough to do the trick. During the scroll the viewport cycles through those two nametables, while the CPU is busy updating the part of the screen that's not yet visible, but will be soon.
-That also means that most of the time, the PPU is rendering parts of both nametables.
+PPU 可以同时在内存中保存两个屏幕（记住一个名称表 - 1024 字节，PPU 有 2 KiB 的 VRAM）。这看起来并不多，但这足以解决问题。在卷动期间，视野在这两个名称表中循环，而 CPU 正忙于更新尚未可见但很快就会出现的屏幕部分。
+这也意味着大多数时候，PPU 都在渲染两个名称表的一部分。
 
-Because this exhausts all available console resources, early games had only 2 options for scrolling: horizontal or vertical. Old games were settled on the type of scroll for the whole game.
-Games that came later on had a mechanism to alternate scrolling between stages. And the most advanced games (like Zelda) provided the experience where a user can "move" in all 4 directions.
+因为这会耗尽所有可用的控制台资源，所以早期的游戏只有两种卷动选项：水平或垂直。旧游戏确定了整个游戏的卷动类型。
+后来出现的游戏具有在阶段之间交替卷动的机制。最先进的游戏（如塞尔达）提供了用户可以在所有 4 个方向上“移动”的体验。
 
 <div style="text-align:center;"><img src="./images/ch8/image_2_scroll_mirroring.png" width="60%"/></div>
 
 
-Initially, the scroll was tightly coupled with mirroring - mostly because of the way NES handled overflow of a viewport from one nametable to another on hardware level.
+最初，卷动与镜像紧密结合 - 主要是因为 NES 在硬件级别上处理从一个命名表到另一个命名表的视野溢出的方式。
 
-For games like Super Mario Bros (Horizontal Scroll) or Ice Climber (Vertical Scroll), the mechanism is entirely defined by:
-- Mirroring type (set in a cartridge ROM header)
-- Base Nametable address (value in PPU Control register)
-- Status of PPU Scroll Register (X and Y shift values of the viewport, in pixels)
-- Content of Nametables
+对于像 Super Mario Bros (Horizontal Scroll) 或 Ice Climber (Vertical Scroll) 这样的游戏，机制完全由以下定义：
+- 镜像类型（在卡带 ROM 标头中设置）
+- 基本名称表地址（PPU 控制寄存器中的值）
+- PPU 卷动寄存器的状态（视口的 X 和 Y 位移值，以像素为单位）
+- 名称表的内容
 
-Remember, a background screen is defined by 960 tiles, each tile being 8x8 pixels, because PPU Scroll Register defines shifts in pixels, which means that on edges of the viewport, we can see parts of a tile.
+请记住，背景屏幕由 960 个图块定义，每个图块为 8x8 像素，因为 PPU 卷动寄存器定义了像素偏移，这意味着在视口的边缘，我们可以看到图块的一部分。
 
 
 <div style="text-align:center;"><img src="./images/ch8/image_3_scroll_controll.png" width="70%"/></div>
 
 
-Updating PPU memory is relatively expensive, and the CPU can do this only during 241 - 262 scanlines. Because of these constraints, the CPU can update a relatively thin part (2x30 tiles wide area) of a screen per frame.
-If we render parts of the nametables that are not yet visible, we can see how the state of the world comes into existence a couple frames before entering the viewport.
+更新 PPU 内存相对昂贵，CPU 只能在 241 - 262 扫描线期间执行此操作。由于这些限制，CPU 可以每帧更新屏幕相对较薄的部分（2x30 块宽区域）。
+如果我们渲染还不可见的名称表的一部分，我们可以看到世界的状态是如何在进入视口之前的几帧中出现的。
 
 <div style="text-align:center;"><img src="./images/ch8/image_4_scroll_demo.gif" width="50%"/></div>
 
-2 last notes before jumping into implementation:
-* The palette of a tile is defined by the nametable the tile belongs to, **not** by the base nametable specified in the Control register
-* For horizontal scrolling the content of the base nametable always goes to the left part of the viewport (or top part in case of vertical scrolling)
+开始实施之前的 2 个最后注意事项：
+* 切片的调色板由切片所属的名称表定义，而 **不是** 由控制寄存器中指定的基本名称表定义
+* 对于水平卷动，基本名称表的内容始终位于视野的左侧（或垂直卷动时的顶部）
 
 
 <div style="text-align:center;"><img src="./images/ch8/image_5_scroll_caveats.png" width="80%"/></div>
 
-Implementing scroll rendering is not hard but requires attention to details. The most convenient mental model I could come up with is the following:
-* For each frame, we would scan through both nametables.
-* For each nametable we would specify visible part of the nametable:
+实现卷动渲染并不难，但需要注意细节。我能想到的最方便的心智模型如下：
+* 对于每一帧，我们将扫描两个名称表。
+* 对于每个名称表，我们将指定名称表的可见部分：
 
 ```rust
 struct Rect {
@@ -128,15 +129,15 @@ impl Rect {
 }
 ```
 
-* And apply shift transformation for each visible pixel - shift_x, shift_y
+* 并对每个可见像素应用移位变换 - shift_x, shift_y
 
-> For example,
+> 例如，
 > <div style="text-align:center;"><img src="./images/ch8/image_6_transform_example.png" width="30%"/></div>
 >
 > For nametable **0x2400**: the visible area would be defined as **(200, 0, 256, 240)** and the shift would be **(-200, 0)**<br/>
 > For nametable **0x2000**: the visible area is **(0,0, 200, 240)** and the shift is **(56, 0)**
 
-So, to draw a nametable we need to create a helper function:
+因此，要绘制一个名称表，我们需要创建一个辅助函数：
 
 ```rust
 fn render_name_table(ppu: &NesPPU, frame: &mut Frame, name_table: &[u8],
@@ -180,7 +181,7 @@ fn render_name_table(ppu: &NesPPU, frame: &mut Frame, name_table: &[u8],
 ```
 
 
-Then rendering background becomes relatively simple:
+那么渲染背景就变得比较简单了：
 
 ```rust
 
@@ -218,16 +219,16 @@ pub fn render(ppu: &NesPPU, frame: &mut Frame) {
 
 ```
 
-Implementing the vertical scroll is similar; we could reuse the same `render_name_table` helper function without changes. Just need to figure out proper *addressing*, *shifts*, and *view_port* parameters.
+实现垂直卷动类似；我们可以重用相同的 `render_name_table` 辅助函数而无需更改。只需要弄清楚正确的 *寻址* 、 *移位*, 和 *视口* 参数。
 
-The fully defined code for scrolling can be found [here](https://github.com/bugzmanov/nes_ebook/tree/master/code/ch8)
+可以在[此处](https://github.com/bugzmanov/nes_ebook/tree/master/code/ch8)找到完整定义的卷动代码
 
-Support for scrolling means that now we can play old platformers like Super Mario Bros and Ice Climber.
+对卷动的支持意味着现在我们可以玩像超级马里奥兄弟和攀冰者这样的老平台游戏。
 
-The final missing piece is APU.
+最后缺少的部分是 APU。
 
 <br/>
 
 ------
 
-> The full source code for this chapter: <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch8" target="_blank">GitHub</a>
+> 本章完整源代码： <a href="https://github.com/bugzmanov/nes_ebook/tree/master/code/ch8" target="_blank">GitHub</a>

@@ -2,7 +2,7 @@
 
 NES 开发社区已经创建了[大量的测试套件](https://wiki.nesdev.com/w/index.php/Emulator_tests)，可用于检查我们的模拟器。
 
-它们几乎涵盖了控制台的各个方面，包括嵌入在平台中的怪癖和值得注意的错误。
+它们几乎涵盖了游戏机的各个方面，包括嵌入在平台中的怪癖和值得注意的错误。
 
  <div style="text-align:center"><img src="./images/ch5.1/image_1_i_am_error.png" width="40%"/></div>
 

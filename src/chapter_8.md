@@ -73,7 +73,7 @@ Sprite 溢出很少使用，因为它有一个导致误报和漏报的错误。
 PPU 可以同时在内存中保存两个屏幕（记住一个名称表 - 1024 字节，PPU 有 2 KiB 的 VRAM）。这看起来并不多，但这足以解决问题。在卷动期间，视野在这两个名称表中循环，而 CPU 正忙于更新尚未可见但很快就会出现的屏幕部分。
 这也意味着大多数时候，PPU 都在渲染两个名称表的一部分。
 
-因为这会耗尽所有可用的控制台资源，所以早期的游戏只有两种卷动选项：水平或垂直。旧游戏确定了整个游戏的卷动类型。
+因为这会耗尽所有可用的游戏机资源，所以早期的游戏只有两种卷动选项：水平或垂直。旧游戏确定了整个游戏的卷动类型。
 后来出现的游戏具有在阶段之间交替卷动的机制。最先进的游戏（如塞尔达）提供了用户可以在所有 4 个方向上“移动”的体验。
 
 <div style="text-align:center;"><img src="./images/ch8/image_2_scroll_mirroring.png" width="60%"/></div>
@@ -134,8 +134,8 @@ impl Rect {
 > 例如，
 > <div style="text-align:center;"><img src="./images/ch8/image_6_transform_example.png" width="30%"/></div>
 >
-> For nametable **0x2400**: the visible area would be defined as **(200, 0, 256, 240)** and the shift would be **(-200, 0)**<br/>
-> For nametable **0x2000**: the visible area is **(0,0, 200, 240)** and the shift is **(56, 0)**
+> 对于名称表 **0x2400**：可见区域将被定义为 **(200, 0, 256, 240)** ，移位将是 **(-200, 0)**<br/>
+> 对于名称表 **0x2000**: 可见区域是 **(0,0, 200, 240)** ，移位是 **(56, 0)**
 
 因此，要绘制一个名称表，我们需要创建一个辅助函数：
 

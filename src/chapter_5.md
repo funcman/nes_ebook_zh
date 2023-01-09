@@ -4,7 +4,7 @@
 
 卡带的第一个版本相对简单。他们携带两组 ROM 存储器：用于代码的 PRG ROM 和用于可视图形的 CHR ROM。
 
-插入控制台后，PRG ROM 连接到 CPU，CHR ROM 连接到 PPU。所以在硬件层面，CPU不能直接访问CHR ROM，PPU不能访问PRG ROM。
+插入游戏机后，PRG ROM 连接到 CPU，CHR ROM 连接到 PPU。所以在硬件层面，CPU不能直接访问CHR ROM，PPU不能访问PRG ROM。
 
 > 更高版本的卡带有额外的硬件：
 > * mappers to provide access to extended ROM memory: both CHR ROM and PRG ROM

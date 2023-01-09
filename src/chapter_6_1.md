@@ -329,7 +329,7 @@ impl NesPPU {
 
 NESDEV wiki 再次提供了对这个主题的出色报道：[Mirroring](http://wiki.nesdev.com/w/index.php/Mirroring).
 
-VRAM 镜像与 NES 实现视口滚动的方式紧密结合。
+VRAM 镜像与 NES 实现视口卷动的方式紧密结合。
 我们将在有关 卷动 的章节中花足够的时间讨论这个问题。现在，我们可以编写镜像行为。
 
 NES 使用 1 KiB 的 VRAM 来表示单个屏幕状态。板载 2 KiB VRAM 意味着 NES 可以保持 2 个屏幕的状态。
